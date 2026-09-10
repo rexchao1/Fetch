@@ -100,7 +100,10 @@ export async function handleHlsProxy(request: Request) {
     return textResponse(error instanceof Error ? error.message : "Bad URL", 400);
   }
 
-  const applied = applyToken(upstream.href, session?.token ?? "");
+  // Master: the session token wins. Variant/segment (`u=` from a rewritten
+  // playlist): keep whatever the playlist signed each URL with, only fill in
+  // params it lacks.
+  const applied = applyToken(upstream.href, session?.token ?? "", raw ? "fill" : "overwrite");
   try {
     upstream = resolveUpstream(applied.url, request.url);
   } catch (error) {

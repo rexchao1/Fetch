@@ -223,6 +223,26 @@ export async function sniffPage(opts) {
     });
     const page = await context.newPage();
 
+    // Ad-heavy stream pages open popup tabs on every click and some try to
+    // navigate this tab to an ad. Close popups the moment they open, and
+    // block this page from being replaced, so the sniff survives long enough
+    // to see the playlist.
+    context.on("page", (extra) => {
+      if (extra !== page) {
+        emit("request", `blocked popup ${shortUrl(extra.url() || "about:blank")}`);
+        extra.close().catch(() => {});
+      }
+    });
+    await page
+      .addInitScript(() => {
+        try {
+          window.open = () => null;
+        } catch {
+          /* sandboxed frame */
+        }
+      })
+      .catch(() => {});
+
     const consider = async (request, response) => {
       const url = request.url();
       const contentType = response?.headers()?.["content-type"] ?? "";
@@ -293,14 +313,59 @@ export async function sniffPage(opts) {
       const clicked = await tryPlay(page).catch(() => null);
       if (clicked) emit("request", `${label}: ${clicked}`);
     };
-    const timers = [
-      setTimeout(() => void nudge("nudge play"), 1_500),
-      setTimeout(() => void nudge("nudge play again"), 6_000),
-    ];
+    // Several rounds: nested-iframe players (JW Player behind an ad wall) often
+    // need the overlay clicked more than once, and the frame may not exist yet
+    // on the first pass.
+    const timers = [1_500, 5_000, 9_000, 14_000, 20_000].map((ms, i) =>
+      setTimeout(() => void nudge(`nudge play ${i + 1}`), ms),
+    );
 
     const deadline = delay(timeoutMs - (Date.now() - started));
     await Promise.race([settled, deadline]);
     for (const timer of timers) clearTimeout(timer);
+
+    // Many stream pages (a JW/Video.js embed behind an ad wall) never fetch
+    // the playlist headless — the player stays idle — but the URL is sitting
+    // in its config or a <video>/<source>. Harvest it and confirm it really
+    // is a playlist by fetching it in-context (shares the page's cookies).
+    if (!candidates.length) {
+      for (const harvested of await harvestPlaylists(page)) {
+        if (seen.has(harvested.url)) continue;
+        seen.add(harvested.url);
+        emit("request", `config: ${shortUrl(harvested.url)} (${harvested.via})`);
+        let body = "";
+        let status = null;
+        try {
+          const res = await context.request.get(harvested.url, {
+            headers: { "user-agent": opts.userAgent ?? SNIFF_UA, referer: harvested.frameUrl, accept: "*/*" },
+            timeout: 8_000,
+            failOnStatusCode: false,
+          });
+          status = res.status();
+          const ct = res.headers()["content-type"] ?? "";
+          if (PLAYLIST_TYPE.test(ct) || PLAYLIST_URL.test(pathOf(harvested.url))) {
+            body = (await res.text()).slice(0, BODY_LIMIT);
+          }
+        } catch {
+          /* unreachable or blocked; keep it as a bare candidate anyway */
+        }
+        const cls = classifyPlaylist(body);
+        candidates.push({
+          url: harvested.url,
+          at: Date.now() - started,
+          frameUrl: harvested.frameUrl,
+          kind: cls.kind,
+          live: cls.live,
+          status,
+          headers: {
+            "user-agent": opts.userAgent ?? SNIFF_UA,
+            referer: harvested.frameUrl,
+            origin: originOf(harvested.frameUrl),
+          },
+        });
+        emit("response", `${status ?? "…"} ${cls.kind} ${shortUrl(harvested.url)} (from player config)`);
+      }
+    }
 
     const finalUrl = page.url();
     const picked = pickPlaylist(candidates);
@@ -358,14 +423,90 @@ export async function sniffPage(opts) {
   }
 }
 
+/**
+ * Read playlist URLs out of the players on the page without waiting for
+ * playback: JW Player and Video.js configs, `<video>`/`<source>` src, and a
+ * regex sweep of each frame's HTML for an `.m3u8`. Player frames first.
+ * @returns {Promise<Array<{url: string, frameUrl: string, via: string}>>}
+ */
+async function harvestPlaylists(page) {
+  const out = [];
+  const seen = new Set();
+  const frames = page.frames();
+  const ordered = [
+    ...frames.filter((f) => looksLikePlayerFrame(f.url())),
+    ...frames.filter((f) => !looksLikePlayerFrame(f.url())),
+  ];
+  for (const frame of ordered) {
+    let found;
+    try {
+      found = await frame.evaluate(() => {
+        const hits = [];
+        const add = (url, via) => {
+          if (typeof url === "string" && /\.m3u8?(\?|#|$)/i.test(url.split(/[?#]/)[0])) hits.push({ url, via });
+        };
+        try {
+          if (window.jwplayer) {
+            const p = window.jwplayer();
+            add(p?.getConfig?.()?.file, "jwplayer.config");
+            for (const item of p?.getPlaylist?.() ?? []) {
+              add(item?.file, "jwplayer.playlist");
+              for (const s of item?.sources ?? []) add(s?.file, "jwplayer.source");
+            }
+          }
+        } catch {
+          /* player not ready */
+        }
+        for (const v of document.querySelectorAll("video")) add(v.currentSrc || v.src, "video.src");
+        for (const s of document.querySelectorAll("source")) add(s.src || s.getAttribute("src"), "source");
+        const html = document.documentElement?.outerHTML ?? "";
+        for (const m of html.match(/https?:\/\/[^"'\s<>\\]+?\.m3u8[^"'\s<>\\]*/gi) ?? []) {
+          add(m.replace(/\\\//g, "/"), "html");
+        }
+        return hits;
+      });
+    } catch {
+      found = [];
+    }
+    for (const hit of found ?? []) {
+      let abs = hit.url;
+      try {
+        abs = new URL(hit.url, frame.url()).href;
+      } catch {
+        /* keep as-is */
+      }
+      if (seen.has(abs)) continue;
+      seen.add(abs);
+      out.push({ url: abs, frameUrl: frame.url(), via: hit.via });
+    }
+  }
+  return out;
+}
+
 async function tryPlay(page) {
-  for (const frame of page.frames()) {
+  // Player frames first (a JW/Video.js embed nested in the page), then the
+  // main document. Ad iframes are skipped so a click does not just open them.
+  const frames = page.frames();
+  const ordered = [
+    ...frames.filter((f) => f !== page.mainFrame() && looksLikePlayerFrame(f.url())),
+    ...frames.filter((f) => f !== page.mainFrame() && !looksLikePlayerFrame(f.url())),
+    page.mainFrame(),
+  ];
+  const done = [];
+  for (const frame of ordered) {
+    const tag = frame === page.mainFrame() ? "" : " (iframe)";
+    // A real overlay click is a trusted gesture — the thing JW Player and
+    // friends wait for — so try the play controls before falling back to
+    // video.play(), and do not stop at the first hit: the control may be an
+    // ad's, and the true player often needs both.
     for (const selector of PLAY_SELECTORS) {
+      if (selector === "video") continue;
       try {
         const locator = frame.locator(selector).first();
         if ((await locator.count()) === 0) continue;
-        await locator.click({ timeout: 800, force: true });
-        return `${selector}${frame === page.mainFrame() ? "" : " (iframe)"}`;
+        await locator.click({ timeout: 700, force: true });
+        done.push(`${selector}${tag}`);
+        break;
       } catch {
         /* next selector */
       }
@@ -379,12 +520,21 @@ async function tryPlay(page) {
         }
         return videos.length;
       });
-      if (played > 0) return `video.play() ×${played}`;
+      if (played > 0) done.push(`video.play()×${played}${tag}`);
     } catch {
-      /* cross-origin frame or detached */
+      /* cross-origin or detached */
     }
   }
-  return null;
+  return done.length ? done.slice(0, 2).join(" + ") : null;
+}
+
+const PLAYER_FRAME_HINT = /player|embed|stream|live|hls|jwp|video|watch|iframe|\.php/i;
+const AD_FRAME_HINT = /doubleclick|googlesyndication|adservice|chatango|histats|dtscout|amung|rtmark|skout|rocks|adblock/i;
+
+function looksLikePlayerFrame(url) {
+  if (!url || url === "about:blank") return false;
+  if (AD_FRAME_HINT.test(url)) return false;
+  return PLAYER_FRAME_HINT.test(url);
 }
 
 function pathOf(value) {

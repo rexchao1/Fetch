@@ -292,6 +292,21 @@ async function runCapture(job: CaptureJob): Promise<CaptureJob> {
     return runSniffCapture(job, recipe);
   }
 
+  if (!recipe.builtin) {
+    // A pasted link has no page to re-open. The simulated capture below is
+    // demo scaffolding for the lab channels; on a real session it would
+    // overwrite the working headers with fake ones.
+    job.status = "error";
+    job.error = "pasted link: nothing to re-open";
+    job.finishedAt = Date.now();
+    pushEvent(
+      job,
+      "error",
+      `${job.error} · sniff the page it came from on the Capture deck to get auto-refresh`,
+    );
+    return job;
+  }
+
   job.status = "running";
   try {
     await tick(job, 50, "launch", "Chromium context (capture plane)");
