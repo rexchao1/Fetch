@@ -29,7 +29,7 @@ function Home() {
   const activeMirrorId = session?.activeMirrorId;
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 lg:grid-cols-[minmax(16rem,19rem)_minmax(0,1fr)_minmax(18rem,22rem)] lg:items-start sm:px-6 sm:py-6">
+    <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 lg:grid-cols-[minmax(15rem,17rem)_minmax(0,1fr)_minmax(17rem,20rem)] lg:items-start sm:px-6">
       <div className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
         {origin && selected ? (
           <HlsPlayer channel={selected} origin={origin} mirrorId={activeMirrorId} />
@@ -43,13 +43,8 @@ function Home() {
             activeMirrorId={activeMirrorId}
           />
         ) : null}
-        <p className="hidden text-sm leading-relaxed text-muted lg:block">
-          Paste a live playlist you already have, or sniff one off a page from the Capture
-          deck. Latch keeps the StreamSession warm — headers, failover, recapture — so
-          Jellyfin only ever hits a stable URL.
-        </p>
       </div>
-      <div className="order-2 min-h-0 min-w-0 lg:order-1 lg:sticky lg:top-20 lg:h-[calc(100dvh-7rem)]">
+      <div className="order-2 min-h-0 min-w-0 lg:order-1 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)]">
         <ChannelList
           channels={channels}
           selectedId={selected?.id}
@@ -59,11 +54,7 @@ function Home() {
         />
       </div>
       <div className="order-3 min-h-0 lg:sticky lg:top-20">
-        {origin && selected ? (
-          <Inspector channel={selected} origin={origin} />
-        ) : (
-          <InspectorSkeleton />
-        )}
+        {origin && selected ? <Inspector channel={selected} origin={origin} /> : null}
       </div>
       <AddChannelDialog open={adding} onOpenChange={setAdding} />
     </div>
@@ -72,12 +63,8 @@ function Home() {
 
 function EmptyPlayer() {
   return (
-    <div className="flex aspect-video items-center justify-center rounded-xl bg-surface px-6 text-center text-sm text-muted shadow-[var(--shadow-border)]">
-      Add a playlist to start, or restore the demo channels.
+    <div className="flex aspect-video items-center justify-center rounded-xl bg-surface text-sm text-subtle">
+      No channel selected
     </div>
   );
-}
-
-function InspectorSkeleton() {
-  return <div className="h-80 rounded-xl bg-surface shadow-[var(--shadow-border)]" />;
 }

@@ -40,10 +40,7 @@ export function MirrorBar({
 
   return (
     <section aria-label="Stream mirrors">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-xs font-medium tracking-wide text-muted uppercase">Streams</h2>
-        <p className="text-xs text-subtle">{mirrors.length} mirrors · switch if one lags</p>
-      </div>
+      <h2 className="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">Streams</h2>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {mirrors.map((mirror) => {
           const active = mirror.id === activeMirrorId;
@@ -105,8 +102,7 @@ function quality(mirror: Mirror) {
   if (mirror.height) bits.push(`${mirror.height}p`);
   else if (mirror.bandwidth) bits.push(`${Math.round(mirror.bandwidth / 1000)}k`);
   const state = healthOf(mirror);
-  if (state === "down") bits.push(mirror.healthStatus ? `error ${mirror.healthStatus}` : "down");
+  if (state === "down") bits.push("down");
   else if (mirror.latencyMs != null) bits.push(`${mirror.latencyMs}ms`);
-  else bits.push("checking…");
   return bits.join(" · ");
 }

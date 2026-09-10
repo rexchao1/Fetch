@@ -1,12 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Radio, RefreshCw, ScanSearch, TimerOff } from "lucide-react";
+import { Radio, RefreshCw, TimerOff } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CaptureJob, PlaneSnapshot, StreamSession } from "@/lib/session/types";
 import { cn } from "@/lib/utils";
@@ -42,60 +40,23 @@ export function CaptureDeck() {
     data?.jobs.find((job) => job.status === "running" || job.status === "queued") ?? data?.jobs[0];
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
-      <header className="max-w-2xl">
-        <p className="text-xs font-medium tracking-wide text-muted uppercase">Architecture</p>
-        <h1 className="mt-1 font-display text-4xl tracking-tight italic">Two planes, one atomic swap</h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          Playwright never sits on the video path. It writes a StreamSession. Jellyfin only ever
-          hits Latch. Expire a lab channel, then play it — the 403 is a backstop, not the engine.
-        </p>
-      </header>
-
+    <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6">
       <SniffForm
         busy={act.isPending}
         onSubmit={(pageUrl, name) => act.mutate({ action: "sniff", pageUrl, name })}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <PlaneCard
-          kicker="Capture plane"
-          title="page → Playwright → session"
-          live={Boolean(data?.inflight.length)}
-        >
+        <Panel title="Capture" live={Boolean(data?.inflight.length)}>
           <NetworkLog job={activeJob} />
-        </PlaneCard>
-        <PlaneCard
-          kicker="Streaming plane"
-          title="Jellyfin → Latch → origin"
-          live={Boolean(data?.hits[0] && data.now - data.hits[0].at < 4000)}
-        >
+        </Panel>
+        <Panel title="Requests" live={Boolean(data?.hits[0] && data.now - data.hits[0].at < 4000)}>
           <HitLog hits={data?.hits ?? []} now={data?.now ?? Date.now()} />
-        </PlaneCard>
+        </Panel>
       </div>
 
-      <section className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xs font-medium tracking-wide text-muted uppercase">Sessions</h2>
-            <p className="mt-1 text-sm text-muted">
-              TTL refresh recaptures a signed URL at 80% of its life, before Jellyfin 403s.
-              Capture runs now. Expire is a lab switch — it does not delete the channel.
-            </p>
-          </div>
-          <div className="flex h-11 items-center gap-2">
-            <Switch
-              id="auto-refresh"
-              checked={data?.autoRefresh ?? true}
-              onCheckedChange={(checked) =>
-                act.mutate({ action: "auto", autoRefresh: checked })
-              }
-            />
-            <Label htmlFor="auto-refresh" className="text-sm">
-              TTL refresh
-            </Label>
-          </div>
-        </div>
+      <section className="rounded-xl bg-surface p-4">
+        <h2 className="mb-3 text-xs font-medium tracking-wide text-subtle uppercase">Sessions</h2>
         <ul className="grid gap-3 md:grid-cols-2">
           {(data?.sessions ?? []).map((session) => (
             <li key={session.channelId}>
@@ -103,12 +64,8 @@ export function CaptureDeck() {
                 session={session}
                 now={data?.now ?? Date.now()}
                 capturing={data?.inflight.includes(session.channelId) ?? false}
-                onCapture={() =>
-                  act.mutate({ action: "capture", channelId: session.channelId })
-                }
-                onExpire={() =>
-                  act.mutate({ action: "expire", channelId: session.channelId })
-                }
+                onCapture={() => act.mutate({ action: "capture", channelId: session.channelId })}
+                onExpire={() => act.mutate({ action: "expire", channelId: session.channelId })}
               />
             </li>
           ))}
@@ -136,66 +93,38 @@ function SniffForm({
   }
 
   return (
-    <section className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-      <div className="mb-3">
-        <h2 className="text-xs font-medium tracking-wide text-muted uppercase">Sniff a page</h2>
-        <p className="mt-1 text-sm text-muted">
-          Latch opens the page in Chromium, watches its network tab for the first `.m3u8`, and
-          keeps the URL with whatever token, Referer and cookies the page sent. The channel lands
-          on the Guide by itself.
-        </p>
-      </div>
-      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
-        <Input
-          value={pageUrl}
-          onChange={(e) => setPageUrl(e.target.value)}
-          placeholder="https://…/watch/123"
-          aria-label="Page URL"
-          inputMode="url"
-          autoComplete="off"
-          spellCheck={false}
-          required
-          className="min-w-0 flex-1"
-        />
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name (optional)"
-          aria-label="Channel name"
-          autoComplete="off"
-          className="sm:w-48"
-        />
-        <Button type="submit" disabled={busy || !pageUrl.trim()} className="shrink-0">
-          <ScanSearch className="size-4" />
-          Sniff
-        </Button>
-      </form>
-      <p className="mt-3 font-mono text-xs leading-relaxed text-subtle">
-        No Playwright on this server? From the machine that has it:{" "}
-        <span className="text-muted">npm run sniff -- &lt;page-url&gt; --server {typeof window === "undefined" ? "http://localhost:8080" : window.location.origin}</span>
-      </p>
-    </section>
+    <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+      <Input
+        value={pageUrl}
+        onChange={(e) => setPageUrl(e.target.value)}
+        placeholder="Page URL to sniff"
+        aria-label="Page URL"
+        inputMode="url"
+        autoComplete="off"
+        spellCheck={false}
+        required
+        className="min-w-0 sm:flex-1"
+      />
+      <Input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Name (optional)"
+        aria-label="Channel name"
+        autoComplete="off"
+        className="sm:w-48"
+      />
+      <Button type="submit" disabled={busy || !pageUrl.trim()} className="shrink-0">
+        Sniff
+      </Button>
+    </form>
   );
 }
 
-function PlaneCard({
-  kicker,
-  title,
-  live,
-  children,
-}: {
-  kicker: string;
-  title: string;
-  live: boolean;
-  children: ReactNode;
-}) {
+function Panel({ title, live, children }: { title: string; live: boolean; children: ReactNode }) {
   return (
-    <section className="flex min-h-80 flex-col rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-muted uppercase">{kicker}</p>
-          <h2 className="mt-1 font-display text-xl tracking-tight italic">{title}</h2>
-        </div>
+    <section className="flex min-h-72 flex-col rounded-xl bg-surface p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-xs font-medium tracking-wide text-subtle uppercase">{title}</h2>
         <Badge variant={live ? "live" : "default"}>{live ? "live" : "idle"}</Badge>
       </div>
       <div className="min-h-0 flex-1">{children}</div>
@@ -204,15 +133,11 @@ function PlaneCard({
 }
 
 function NetworkLog({ job }: { job?: CaptureJob }) {
-  if (!job) {
-    return (
-      <p className="text-sm text-muted">No capture yet. Sniff a page above, or run one on a session below.</p>
-    );
-  }
+  if (!job) return <p className="text-sm text-subtle">No captures yet</p>;
   return (
     <div className="flex h-full min-h-56 flex-col">
-      <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted">
-        <span className="font-mono">
+      <div className="mb-2 flex items-center justify-between gap-2 font-mono text-xs text-subtle">
+        <span>
           {job.channelId} · {job.reason}
         </span>
         <span className="uppercase">{job.status}</span>
@@ -244,13 +169,7 @@ function NetworkLog({ job }: { job?: CaptureJob }) {
 }
 
 function HitLog({ hits, now }: { hits: PlaneSnapshot["hits"]; now: number }) {
-  if (!hits.length) {
-    return (
-      <p className="text-sm text-muted">
-        Play a channel on Guide. Hits land here without waiting on Playwright.
-      </p>
-    );
-  }
+  if (!hits.length) return <p className="text-sm text-subtle">No requests yet</p>;
   return (
     <ScrollArea className="h-56 rounded-md bg-bg">
       <ol className="p-3 font-mono text-xs leading-relaxed">
@@ -259,12 +178,7 @@ function HitLog({ hits, now }: { hits: PlaneSnapshot["hits"]; now: number }) {
             <span className="w-12 shrink-0 text-subtle tabular-nums">
               {Math.max(0, Math.round((now - hit.at) / 1000))}s
             </span>
-            <span
-              className={cn(
-                "w-10 shrink-0",
-                hit.status >= 400 ? "text-danger" : "text-live",
-              )}
-            >
+            <span className={cn("w-10 shrink-0", hit.status >= 400 ? "text-danger" : "text-live")}>
               {hit.status}
             </span>
             <span className="text-muted">{hit.path}</span>
@@ -295,45 +209,38 @@ function SessionCard({
   return (
     <article className="flex flex-col gap-3 rounded-lg bg-bg p-4">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <h3 className="font-medium text-fg">{session.name}</h3>
-          <p className="mt-0.5 font-mono text-xs text-subtle">
-            gen {session.generation} · {session.source} · {session.lastReason}
-            {session.live
-              ? ` · health ${session.healthStatus ?? "…"}`
-              : ""}
+        <div className="min-w-0">
+          <h3 className="truncate font-medium text-fg">{session.name}</h3>
+          <p className="mt-0.5 truncate font-mono text-xs text-subtle">
+            gen {session.generation} · {session.source}
+            {session.live ? ` · ${session.healthStatus ?? "…"}` : ""}
           </p>
         </div>
         <Badge variant={capturing ? "warn" : expired ? "danger" : "live"}>
           {capturing ? "capturing" : expired ? "expired" : "fresh"}
         </Badge>
       </div>
-      <p className="truncate font-mono text-xs text-muted">{session.pageUrl}</p>
       {remaining !== null ? (
         <div>
           <div className="mb-1 flex justify-between text-xs text-subtle">
-            <span>TTL</span>
+            <span>Expires</span>
             <span className="font-mono tabular-nums">{formatMs(remaining)}</span>
           </div>
           <div className="h-1 overflow-hidden rounded-full bg-surface-2">
             <div
               className={cn("h-full rounded-full", expired ? "bg-danger" : "bg-live")}
-              style={{
-                width: ttlWidth(session, now),
-              }}
+              style={{ width: ttlWidth(session, now) }}
             />
           </div>
         </div>
-      ) : (
-        <p className="text-xs text-subtle">No expiry — recapture is manual or on 403.</p>
-      )}
+      ) : null}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={onCapture} disabled={capturing}>
-          {capturing ? <Radio className="size-4" /> : <RefreshCw className="size-4" />}
-          Capture
+        <Button size="sm" variant="secondary" onClick={onCapture} disabled={capturing}>
+          {capturing ? <Radio /> : <RefreshCw />}
+          Recapture
         </Button>
-        <Button size="sm" variant="outline" onClick={onExpire}>
-          <TimerOff className="size-4" />
+        <Button size="sm" variant="ghost" onClick={onExpire}>
+          <TimerOff />
           Expire
         </Button>
       </div>

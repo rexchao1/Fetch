@@ -2,7 +2,7 @@ import { Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Channel } from "@/lib/hls/catalog";
-import { headerRecipe, channelProxyPath } from "@/lib/hls/catalog";
+import { channelProxyPath } from "@/lib/hls/catalog";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -61,7 +61,7 @@ export function HlsPlayer({ channel, origin, mirrorId }: Props) {
             if (!data.fatal || cancelled) return;
             if (!retried) {
               retried = true;
-              setError("Waiting on capture plane…");
+              setError("Reconnecting…");
               window.setTimeout(() => {
                 if (cancelled) return;
                 setError(null);
@@ -132,7 +132,7 @@ export function HlsPlayer({ channel, origin, mirrorId }: Props) {
 
   return (
     <section className="flex min-w-0 flex-col gap-3">
-      <div className="relative overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
+      <div className="relative overflow-hidden rounded-xl bg-surface">
         <div className="relative aspect-video bg-bg">
           <video
             ref={videoRef}
@@ -159,9 +159,7 @@ export function HlsPlayer({ channel, origin, mirrorId }: Props) {
           </div>
           {expired ? (
             <div className="absolute inset-0 flex items-center justify-center bg-bg/80">
-              <p className="max-w-xs px-6 text-center text-sm text-muted">
-                Token expired. Refresh it in the inspector, then play again.
-              </p>
+              <p className="text-sm text-muted">Token expired</p>
             </div>
           ) : null}
           {channel.live ? (
@@ -172,17 +170,14 @@ export function HlsPlayer({ channel, origin, mirrorId }: Props) {
           ) : null}
           {!ready && !error && !expired ? (
             <p className="pointer-events-none absolute bottom-3 left-4 text-xs text-muted">
-              Loading playlist…
+              Loading…
             </p>
           ) : null}
         </div>
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="min-w-0">
-            <p className="font-display text-lg tracking-tight italic">{channel.name}</p>
-            <p className="truncate text-xs text-subtle">
-              {channel.group} · {headerRecipe(channel.userAgent, channel.referer)}
-            </p>
-          </div>
+          <p className="min-w-0 truncate font-display text-lg tracking-tight italic">
+            {channel.name}
+          </p>
           <Button
             type="button"
             variant="ghost"

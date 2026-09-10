@@ -42,7 +42,7 @@ type InspectPayload = {
 export function Inspector({ channel, origin }: { channel: Channel; origin: string }) {
   const refreshToken = useLatchStore((s) => s.refreshToken);
   const expireToken = useLatchStore((s) => s.expireToken);
-  const proxyPath = channelProxyPath(channel);
+  const proxyUrl = `${origin}${channelProxyPath(channel)}`;
   const inspectUrl = channel.builtin
     ? `/api/inspect?ch=${encodeURIComponent(channel.id)}`
     : `/api/inspect?ch=${encodeURIComponent(channel.id)}&u=${encodeURIComponent(channel.url)}&ua=${encodeURIComponent(channel.userAgent)}&rf=${encodeURIComponent(channel.referer)}`;
@@ -57,61 +57,51 @@ export function Inspector({ channel, origin }: { channel: Channel; origin: strin
   });
 
   return (
-    <aside className="flex min-h-0 flex-col rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-xs font-medium tracking-wide text-muted uppercase">Inspector</h2>
-        {inspect.data?.ok ? (
-          <Badge variant={inspect.data.live || channel.live ? "live" : "default"}>
-            {inspect.data.live || channel.live ? "live" : inspect.data.status}
-          </Badge>
-        ) : inspect.data ? (
-          <Badge variant="danger">{inspect.data.status || "err"}</Badge>
-        ) : (
-          <Badge>idle</Badge>
-        )}
-      </div>
-      <Tabs defaultValue="headers">
+    <aside className="flex min-h-0 flex-col rounded-xl bg-surface p-3">
+      <Tabs defaultValue="stream">
         <TabsList className="w-full">
-          <TabsTrigger value="headers">Headers</TabsTrigger>
-          <TabsTrigger value="playlist">Rewrite</TabsTrigger>
+          <TabsTrigger value="stream">Stream</TabsTrigger>
+          <TabsTrigger value="playlist">Playlist</TabsTrigger>
           <TabsTrigger value="token">Token</TabsTrigger>
         </TabsList>
-        <TabsContent value="headers" className="flex flex-col gap-3 pt-1">
-          <Meta label="User-Agent" value={channel.userAgent || "—"} mono />
-          <Meta label="Referer" value={channel.referer || "—"} mono />
-          <Meta label="Proxy" value={`${origin}${proxyPath}`} mono />
-          {inspect.data?.session ? (
-            <Meta
-              label="Session"
-              value={`gen ${inspect.data.session.generation} · ${inspect.data.session.source}`}
-              mono
-            />
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            <CopyBtn label="Proxy URL" value={`${origin}${proxyPath}`} />
-            <CopyBtn label="M3U line" value={`${origin}${proxyPath}`} />
+        <TabsContent value="stream" className="flex flex-col gap-3 px-1 pb-1">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-subtle">Proxy URL</p>
+              <button
+                type="button"
+                aria-label="Copy proxy URL"
+                className="flex size-8 items-center justify-center rounded-md text-subtle hover:text-fg"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(proxyUrl);
+                  toast.success("Copied");
+                }}
+              >
+                <Copy className="size-4" />
+              </button>
+            </div>
+            <p className="break-all font-mono text-xs text-fg">{proxyUrl}</p>
           </div>
-          <p className="text-xs leading-relaxed text-subtle">{channel.note}</p>
+          <Meta label="Referer" value={channel.referer || "—"} />
+          <Meta label="User-Agent" value={channel.userAgent || "—"} />
         </TabsContent>
-        <TabsContent value="playlist" className="pt-1">
+        <TabsContent value="playlist" className="px-1 pb-1">
           {inspect.isLoading ? (
-            <p className="text-sm text-muted">Fetching playlist…</p>
+            <p className="text-sm text-subtle">Loading…</p>
           ) : inspect.data?.error && !inspect.data.original ? (
             <p className="text-sm text-danger">{inspect.data.error}</p>
           ) : inspect.data ? (
             <RewriteView data={inspect.data} />
           ) : (
-            <p className="text-sm text-muted">No playlist yet.</p>
+            <p className="text-sm text-subtle">No playlist yet</p>
           )}
         </TabsContent>
-        <TabsContent value="token" className="flex flex-col gap-3 pt-1">
+        <TabsContent value="token" className="flex flex-col gap-3 px-1 pb-1">
           <TokenEditor channel={channel} onSaved={() => void inspect.refetch()} />
           {channel.kind === "token" ? (
             <>
               <TokenClock
-                expiresAt={
-                  inspect.data?.session?.expiresAt ?? channel.tokenExpiresAt ?? 0
-                }
+                expiresAt={inspect.data?.session?.expiresAt ?? channel.tokenExpiresAt ?? 0}
               />
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -126,8 +116,8 @@ export function Inspector({ channel, origin }: { channel: Channel; origin: strin
                     window.setTimeout(() => void inspect.refetch(), 800);
                   }}
                 >
-                  <RefreshCw className="size-4" />
-                  Capture session
+                  <RefreshCw />
+                  Recapture
                 </Button>
                 <Button
                   size="sm"
@@ -142,20 +132,12 @@ export function Inspector({ channel, origin }: { channel: Channel; origin: strin
                     void inspect.refetch();
                   }}
                 >
-                  <TimerOff className="size-4" />
-                  Force expire
+                  <TimerOff />
+                  Expire
                 </Button>
               </div>
-              <p className="text-xs leading-relaxed text-subtle">
-                Lab channel: capture mints a new exp. Jellyfin still holds `/api/hls?ch=night-token`.
-              </p>
             </>
-          ) : (
-            <p className="text-xs leading-relaxed text-subtle">
-              Query tokens go on the upstream URL. Bearer and Cookie go as headers. The M3U
-              Jellyfin holds never includes this value.
-            </p>
-          )}
+          ) : null}
         </TabsContent>
       </Tabs>
     </aside>
@@ -164,43 +146,21 @@ export function Inspector({ channel, origin }: { channel: Channel; origin: strin
 
 function RewriteView({ data }: { data: InspectPayload }) {
   const summary = data.summary;
+  const preview = data.rewritten.split(/\r?\n/).slice(0, 28);
   return (
     <div className="flex flex-col gap-3">
-      <dl className="grid grid-cols-2 gap-2 text-xs">
-        <Stat label="Kind" value={summary?.isMaster ? "master" : "media"} />
-        <Stat label="Rewrites" value={String(data.rewrites)} />
+      <dl className="grid grid-cols-3 gap-2 text-xs">
+        <Stat label={summary?.isMaster ? "Master" : "Media"} value={String(data.rewrites)} sub="rewrites" />
         <Stat label="Variants" value={String(summary?.variants ?? 0)} />
         <Stat label="Segments" value={String(summary?.segments ?? 0)} />
-        <Stat label="Keys" value={String(summary?.keys ?? 0)} />
-        <Stat label="Maps" value={String(summary?.maps ?? 0)} />
       </dl>
-      <PlaylistBlock label="Rewritten" text={data.rewritten} highlight />
-    </div>
-  );
-}
-
-function PlaylistBlock({
-  label,
-  text,
-  highlight,
-}: {
-  label: string;
-  text: string;
-  highlight?: boolean;
-}) {
-  const preview = text.split(/\r?\n/).slice(0, 28).join("\n");
-  return (
-    <div>
-      <p className="mb-1.5 text-xs font-medium text-muted">{label}</p>
-      <pre className="max-h-64 overflow-auto rounded-md bg-bg p-3 font-mono text-xs leading-relaxed text-muted">
-        {preview.split("\n").map((line, i) => (
+      <pre className="max-h-64 overflow-auto rounded-md bg-bg p-3 font-mono text-xs leading-relaxed text-subtle">
+        {preview.map((line, i) => (
           <span
             key={`${i}-${line.slice(0, 24)}`}
             className={cn(
               "block whitespace-pre-wrap break-all",
-              highlight && (line.startsWith("/api/hls") || line.includes("URI="))
-                ? "text-fg"
-                : undefined,
+              line.startsWith("/api/hls") || line.includes("URI=") ? "text-fg" : undefined,
             )}
           >
             {line || " "}
@@ -211,38 +171,24 @@ function PlaylistBlock({
   );
 }
 
-function Meta({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-medium text-muted">{label}</p>
-      <p className={cn("mt-0.5 break-all text-sm text-fg", mono && "font-mono text-xs")}>{value}</p>
+      <p className="text-xs text-subtle">{label}</p>
+      <p className="mt-0.5 break-all font-mono text-xs text-fg">{value}</p>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-md bg-bg px-2.5 py-2">
       <dt className="text-subtle">{label}</dt>
-      <dd className="font-mono text-sm text-fg tabular-nums">{value}</dd>
+      <dd className="font-mono text-sm text-fg tabular-nums">
+        {value}
+        {sub ? <span className="ml-1 text-xs text-subtle">{sub}</span> : null}
+      </dd>
     </div>
-  );
-}
-
-function CopyBtn({ label, value }: { label: string; value: string }) {
-  return (
-    <Button
-      type="button"
-      size="sm"
-      variant="secondary"
-      onClick={async () => {
-        await navigator.clipboard.writeText(value);
-        toast.success(`Copied ${label.toLowerCase()}`);
-      }}
-    >
-      <Copy className="size-4" />
-      {label}
-    </Button>
   );
 }
 
@@ -260,13 +206,13 @@ function TokenEditor({ channel, onSaved }: { channel: Channel; onSaved: () => vo
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-muted">Session token</p>
+        <p className="text-xs text-subtle">Token</p>
         <Badge variant={kind === "empty" ? "default" : "live"}>{tokenKindLabel(kind)}</Badge>
       </div>
       <Textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="token=…  ·  Bearer eyJ…  ·  Cookie: sid=…  ·  signed URL"
+        placeholder="token=…, Bearer …, Cookie: …, or a signed URL"
         spellCheck={false}
         aria-label="Stream token"
       />
@@ -277,11 +223,11 @@ function TokenEditor({ channel, onSaved }: { channel: Channel; onSaved: () => vo
           disabled={!dirty}
           onClick={() => {
             setToken(channel.id, value);
-            toast.success(value.trim() ? "Token saved on the session" : "Token cleared");
+            toast.success(value.trim() ? "Token saved" : "Token cleared");
             onSaved();
           }}
         >
-          Save token
+          Save
         </Button>
         {channel.token ? (
           <p className="font-mono text-xs text-subtle">{maskToken(channel.token)}</p>
@@ -300,11 +246,11 @@ function TokenClock({ expiresAt }: { expiresAt: number }) {
   const remaining = expiresAt - Date.now();
   const expired = remaining <= 0;
   return (
-    <div className="rounded-md bg-bg px-3 py-3">
-      <p className="text-xs font-medium text-muted">Time to expiry</p>
+    <div className="rounded-md bg-bg px-3 py-2">
+      <p className="text-xs text-subtle">Expires in</p>
       <p
         className={cn(
-          "mt-1 font-mono text-2xl tracking-tight tabular-nums",
+          "mt-0.5 font-mono text-xl tracking-tight tabular-nums",
           expired ? "text-danger" : "text-fg",
         )}
       >
