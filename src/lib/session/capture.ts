@@ -1,6 +1,8 @@
+import { scoreMirror } from "../../../scripts/sniff-core.mjs";
 import { TOKEN_TTL_MS, type Channel } from "@/lib/hls/catalog";
 import { applyToken } from "@/lib/hls/token";
 import { commitCapture, sniff, sniffAvailable, validPage } from "./sniff";
+import type { Mirror } from "./types";
 import {
   commitSession,
   dueForRefresh,
@@ -16,7 +18,7 @@ import {
   snapshot,
   touchHealth,
 } from "./store";
-import type { CaptureEvent, CaptureJob, PlaneSnapshot } from "./types";
+import type { CaptureEvent, CaptureJob, PlaneSnapshot, StreamSession } from "./types";
 
 const SNIFF_TIMEOUT_MS = 30_000;
 const EVENT_KINDS = new Set<CaptureEvent["kind"]>([
@@ -61,6 +63,11 @@ async function checkNextLive() {
   const session = live[healthCursor];
   healthCursor += 1;
   if (!session) return;
+
+  if (session.mirrors?.length) {
+    await checkMirrors(session as StreamSessionWithMirrors);
+    return;
+  }
 
   const started = Date.now();
   try {
@@ -117,6 +124,107 @@ async function recoverLive(channelId: string, reason: string) {
   healthFails.set(channelId, 0);
   enqueueCapture(channelId, reason);
 }
+
+/**
+ * Ping every mirror of a multi-stream session, record each one's health and
+ * latency in place so the dashboard shows which alternates are up, and if the
+ * mirror we are playing fails twice, move to the best healthy alternate.
+ */
+async function checkMirrors(session: StreamSessionWithMirrors) {
+  const results = await Promise.all(
+    session.mirrors.map(async (mirror) => ({ mirror, ...(await pingMirror(mirror)) })),
+  );
+  const now = Date.now();
+  for (const { mirror, status, ms } of results) {
+    mirror.healthStatus = status;
+    mirror.latencyMs = ms;
+    mirror.healthAt = now;
+  }
+  const active = session.mirrors.find((m) => m.id === session.activeMirrorId) ?? session.mirrors[0];
+  const activeResult = results.find((r) => r.mirror.id === active.id);
+  if (activeResult) {
+    session.healthStatus = activeResult.status;
+    session.healthAt = now;
+  }
+
+  const activeOk = activeResult ? activeResult.status >= 200 && activeResult.status < 400 : false;
+  if (activeOk) {
+    healthFails.set(session.channelId, 0);
+    return;
+  }
+  const fails = (healthFails.get(session.channelId) ?? 0) + 1;
+  healthFails.set(session.channelId, fails);
+  if (fails < 2) return;
+
+  const best = bestHealthyMirror(session.mirrors, active.id);
+  if (best) {
+    healthFails.set(session.channelId, 0);
+    switchMirror(session.channelId, best.id, `auto: ${active.label} ${activeResult?.status ?? "down"}`);
+  }
+}
+
+/** The highest-scoring reachable mirror that is not the one given. */
+function bestHealthyMirror(mirrors: Mirror[], excludeId: string) {
+  return mirrors
+    .filter((m) => m.id !== excludeId && m.healthStatus !== null && m.healthStatus >= 200 && m.healthStatus < 400)
+    .map((m) => ({ m, score: scoreMirror({ ...m, status: m.healthStatus, ms: m.latencyMs ?? undefined }) }))
+    .sort((a, b) => b.score - a.score)[0]?.m;
+}
+
+async function pingMirror(mirror: Mirror): Promise<{ status: number; ms: number }> {
+  const started = Date.now();
+  try {
+    const headers: Record<string, string> = { accept: "*/*", "user-agent": mirror.headers.userAgent };
+    if (mirror.headers.referer) headers.referer = mirror.headers.referer;
+    if (mirror.headers.origin) headers.origin = mirror.headers.origin;
+    if (mirror.headers.cookie) headers.cookie = mirror.headers.cookie;
+    if (mirror.headers.authorization) headers.authorization = mirror.headers.authorization;
+    const response = await fetch(mirror.url, {
+      headers,
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+    });
+    void response.body?.cancel();
+    return { status: response.status, ms: Date.now() - started };
+  } catch {
+    return { status: 0, ms: Date.now() - started };
+  }
+}
+
+/**
+ * Point a channel at a different mirror — from the dashboard, or from the
+ * watchdog when the active one dies. The channel's stable proxy path is
+ * unchanged, so the player and Jellyfin just reload onto the new source.
+ */
+export function switchMirror(channelId: string, mirrorId: string, reason = "manual switch") {
+  const session = getSession(channelId);
+  if (!session?.mirrors?.length) return undefined;
+  const mirror = session.mirrors.find((m) => m.id === mirrorId);
+  if (!mirror) return session;
+
+  const recipe = getRecipe(channelId);
+  if (recipe) {
+    recipe.url = mirror.url;
+    recipe.userAgent = mirror.headers.userAgent;
+    recipe.referer = mirror.headers.referer;
+    recipe.token = mirror.token;
+  }
+  return commitSession({
+    ...session,
+    playlistUrl: mirror.url,
+    headers: mirror.headers,
+    token: mirror.token,
+    expiresAt: mirror.expiresAt,
+    activeMirrorId: mirror.id,
+    healthStatus: mirror.healthStatus,
+    healthAt: mirror.healthAt,
+    source: "manual",
+    lastReason: reason,
+    capturedAt: Date.now(),
+  });
+}
+
+type StreamSessionWithMirrors = StreamSession & { mirrors: Mirror[] };
 
 export function enqueueCapture(channelId: string, reason: string): CaptureJob {
   ensureScheduler();
@@ -407,6 +515,7 @@ async function runSniffCapture(job: CaptureJob, recipe: Channel): Promise<Captur
       channelId: recipe.id,
       title: result.title,
       playlist: result.playlist,
+      mirrors: result.mirrors,
       reason: job.reason,
     });
     pushEvent(job, "commit", `generation ${session.generation} · atomic swap`);

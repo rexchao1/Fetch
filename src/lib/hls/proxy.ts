@@ -85,7 +85,12 @@ export async function handleHlsProxy(request: Request) {
   }
 
   const session = channelId ? getSession(channelId) : undefined;
-  const targetRaw = raw || session?.playlistUrl;
+  // A mirrored channel serves its active mirror. `?m=<id>` lets the dashboard
+  // preview a specific mirror without changing the stable one Jellyfin holds.
+  const mirrorId = reqUrl.searchParams.get("m");
+  const mirror = session?.mirrors?.find((m) => m.id === mirrorId);
+  const mirrorHeaders = mirror?.headers ?? (mirrorId ? undefined : session?.headers);
+  const targetRaw = raw || mirror?.url || session?.playlistUrl;
   if (!targetRaw) {
     if (session?.source === "sniff" || (session && page)) {
       return textResponse("503 capture pending — the page is being sniffed", 503);
@@ -100,10 +105,15 @@ export async function handleHlsProxy(request: Request) {
     return textResponse(error instanceof Error ? error.message : "Bad URL", 400);
   }
 
-  // Master: the session token wins. Variant/segment (`u=` from a rewritten
-  // playlist): keep whatever the playlist signed each URL with, only fill in
-  // params it lacks.
-  const applied = applyToken(upstream.href, session?.token ?? "", raw ? "fill" : "overwrite");
+  // A previewed mirror carries its own token and headers; otherwise the active
+  // session's apply.
+  const baseHeaders = mirrorHeaders ?? session?.headers;
+  const baseToken = mirror?.token ?? session?.token ?? "";
+
+  // Master: the session/mirror token wins. Variant/segment (`u=` from a
+  // rewritten playlist): keep whatever the playlist signed each URL with, only
+  // fill in params it lacks.
+  const applied = applyToken(upstream.href, baseToken, raw ? "fill" : "overwrite");
   try {
     upstream = resolveUpstream(applied.url, request.url);
   } catch (error) {
@@ -111,12 +121,12 @@ export async function handleHlsProxy(request: Request) {
   }
 
   const headers: SessionHeaders = {
-    ...(session?.headers ?? {
+    ...(baseHeaders ?? {
       userAgent: queryUa,
       referer: queryRf,
     }),
-    authorization: applied.authorization ?? session?.headers.authorization,
-    cookie: [session?.headers.cookie, applied.cookie].filter(Boolean).join("; ") || session?.headers.cookie,
+    authorization: applied.authorization ?? baseHeaders?.authorization,
+    cookie: [baseHeaders?.cookie, applied.cookie].filter(Boolean).join("; ") || baseHeaders?.cookie,
   };
 
   const started = Date.now();
@@ -124,6 +134,9 @@ export async function handleHlsProxy(request: Request) {
     channelId: channelId || undefined,
     userAgent: headers.userAgent,
     referer: headers.referer,
+    // Keep a previewed mirror pinned through its segment URLs so they use the
+    // same source and headers as the master the player just loaded.
+    mirrorId: mirror ? mirror.id : undefined,
   };
 
   let response: Response;

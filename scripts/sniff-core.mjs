@@ -15,6 +15,9 @@
 export const DEFAULT_TIMEOUT_MS = 30_000;
 export const SETTLE_MS = 4_000;
 const BODY_LIMIT = 200_000;
+const MAX_SWITCHES = 6; // stream-switch buttons to click through per page
+const SWITCH_WAIT_MS = 3_000; // settle after clicking a switch before harvesting
+const MAX_MIRRORS = 8; // distinct playlists kept for one channel
 
 export const SNIFF_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
@@ -324,96 +327,82 @@ export async function sniffPage(opts) {
     await Promise.race([settled, deadline]);
     for (const timer of timers) clearTimeout(timer);
 
-    // Many stream pages (a JW/Video.js embed behind an ad wall) never fetch
-    // the playlist headless — the player stays idle — but the URL is sitting
-    // in its config or a <video>/<source>. Harvest it and confirm it really
-    // is a playlist by fetching it in-context (shares the page's cookies).
-    if (!candidates.length) {
+    // Absorb URLs sitting in a player's config or a <video>/<source> that were
+    // never fetched headless (the player stays idle behind an ad wall). Confirm
+    // each is a real playlist in-context. Labeled by the variant it belongs to.
+    const absorbHarvest = async (label) => {
       for (const harvested of await harvestPlaylists(page)) {
         if (seen.has(harvested.url)) continue;
         seen.add(harvested.url);
-        emit("request", `config: ${shortUrl(harvested.url)} (${harvested.via})`);
-        let body = "";
-        let status = null;
-        try {
-          const res = await context.request.get(harvested.url, {
-            headers: { "user-agent": opts.userAgent ?? SNIFF_UA, referer: harvested.frameUrl, accept: "*/*" },
-            timeout: 8_000,
-            failOnStatusCode: false,
-          });
-          status = res.status();
-          const ct = res.headers()["content-type"] ?? "";
-          if (PLAYLIST_TYPE.test(ct) || PLAYLIST_URL.test(pathOf(harvested.url))) {
-            body = (await res.text()).slice(0, BODY_LIMIT);
-          }
-        } catch {
-          /* unreachable or blocked; keep it as a bare candidate anyway */
-        }
-        const cls = classifyPlaylist(body);
         candidates.push({
           url: harvested.url,
           at: Date.now() - started,
           frameUrl: harvested.frameUrl,
-          kind: cls.kind,
-          live: cls.live,
-          status,
+          kind: "unknown",
+          live: null,
+          status: null,
+          label,
           headers: {
             "user-agent": opts.userAgent ?? SNIFF_UA,
             referer: harvested.frameUrl,
             origin: originOf(harvested.frameUrl),
           },
         });
-        emit("response", `${status ?? "…"} ${cls.kind} ${shortUrl(harvested.url)} (from player config)`);
+        emit("response", `config ${shortUrl(harvested.url)} (${harvested.via})`);
+      }
+    };
+    await absorbHarvest(undefined);
+
+    // Multi-stream pages carry "Stream 1 / Server 2 / …" buttons that each swap
+    // the player to a mirror of the same event. Click through them so every
+    // mirror is captured, then rank them. Time-window labelling ties each
+    // playlist to the button that was clicked just before it appeared.
+    const marks = [{ at: 0, label: undefined }];
+    const switches = await tagSwitches(page);
+    if (switches.length) {
+      emit("iframe", `${switches.length} stream button${switches.length === 1 ? "" : "s"}`);
+      for (const sw of switches.slice(0, MAX_SWITCHES)) {
+        try {
+          await sw.frame.locator(sw.sel).first().click({ timeout: 1_500, force: true });
+          marks.push({ at: Date.now() - started, label: sw.label });
+          emit("request", `switch → ${sw.label}`);
+          await delay(SWITCH_WAIT_MS);
+          await absorbHarvest(sw.label);
+        } catch {
+          emit("error", `could not click ${sw.label}`);
+        }
       }
     }
 
     const finalUrl = page.url();
-    const picked = pickPlaylist(candidates);
-    let cookie = "";
-    if (picked) {
-      try {
-        const jar = await context.cookies([picked.url, finalUrl]);
-        cookie = mergeCookies(picked.headers.cookie, cookieHeader(jar));
-      } catch {
-        cookie = picked.headers.cookie ?? "";
-      }
+    // Label any network-captured playlist by the switch active when it arrived.
+    for (const c of candidates) {
+      if (c.label) continue;
+      let label;
+      for (const mark of marks) if (mark.at <= c.at) label = mark.label;
+      c.label = label;
     }
 
-    if (!picked) {
+    const mirrors = await buildMirrors(context, candidates, finalUrl, opts, emit);
+    const best = mirrors[0] ?? null;
+
+    if (!best) {
       emit("error", `no .m3u8 seen in ${Math.round((Date.now() - started) / 1000)}s`);
     } else {
-      const summary = [
-        "UA",
-        picked.headers.referer ? "Referer" : null,
-        picked.headers.origin ? "Origin" : null,
-        cookie ? `Cookie ${cookie.slice(0, 18)}…` : null,
-        picked.headers.authorization ? "Authorization" : null,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      emit("permit", summary);
+      emit(
+        "permit",
+        mirrors.length > 1
+          ? `${mirrors.length} mirrors · best ${best.label} (${describeMirror(best)})`
+          : describeMirror(best),
+      );
     }
 
     return {
       pageUrl: opts.pageUrl,
       finalUrl,
       title,
-      playlist: picked
-        ? {
-            url: picked.url,
-            kind: picked.kind,
-            live: picked.live,
-            status: picked.status,
-            expiresAt: expiryFromUrl(picked.url),
-            headers: {
-              userAgent: picked.headers["user-agent"] ?? opts.userAgent ?? SNIFF_UA,
-              referer: picked.headers.referer ?? finalUrl,
-              origin: picked.headers.origin || originOf(picked.headers.referer ?? finalUrl),
-              cookie: cookie || undefined,
-              authorization: picked.headers.authorization || undefined,
-            },
-          }
-        : null,
+      playlist: best,
+      mirrors,
       candidates: candidates.map((c) => ({ url: c.url, kind: c.kind, status: c.status, at: c.at })),
       events,
       ms: Date.now() - started,
@@ -421,6 +410,220 @@ export async function sniffPage(opts) {
   } finally {
     await browser.close().catch(() => {});
   }
+}
+
+/**
+ * Turn raw playlist sightings into ranked mirrors: dedupe by URL, probe each
+ * in-context for reachability, latency and (from a master) bandwidth and
+ * resolution, then sort best-first with `scoreMirror`. Every entry is a
+ * self-contained way to play the stream, headers and token included.
+ */
+export async function buildMirrors(context, candidates, finalUrl, opts, emit = () => {}) {
+  const byUrl = new Map();
+  for (const c of candidates) {
+    const existing = byUrl.get(c.url);
+    // Prefer a sighting that carried real request headers (referer/cookie)
+    // over a bare config harvest of the same URL.
+    if (!existing || (!existing.headers.referer && c.headers.referer)) byUrl.set(c.url, c);
+  }
+  const distinct = [...byUrl.values()].slice(0, MAX_MIRRORS);
+
+  const built = await Promise.all(
+    distinct.map(async (c) => {
+      let cookie = "";
+      try {
+        const jar = await context.cookies([c.url, c.frameUrl || finalUrl]);
+        cookie = mergeCookies(c.headers.cookie, cookieHeader(jar));
+      } catch {
+        cookie = c.headers.cookie ?? "";
+      }
+      const headers = {
+        userAgent: c.headers["user-agent"] ?? opts.userAgent ?? SNIFF_UA,
+        referer: c.headers.referer ?? c.frameUrl ?? finalUrl,
+        origin: c.headers.origin || originOf(c.headers.referer ?? c.frameUrl ?? finalUrl),
+        cookie: cookie || undefined,
+        authorization: c.headers.authorization || undefined,
+      };
+      const probe = await probeMirror(context, c.url, headers);
+      return {
+        // Raw label from the switch button (or empty); display name assigned
+        // after grouping so child playlists collapse under their parent.
+        rawLabel: (c.label || "").trim(),
+        url: c.url,
+        kind: probe.kind !== "unknown" ? probe.kind : c.kind,
+        live: probe.live ?? c.live,
+        status: probe.status ?? c.status,
+        ms: probe.ms,
+        bandwidth: probe.bandwidth,
+        width: probe.width,
+        height: probe.height,
+        expiresAt: expiryFromUrl(c.url),
+        headers,
+      };
+    }),
+  );
+
+  // One mirror per switch button. A master playlist drags its child media
+  // playlists along as separate captures under the same label; keep only the
+  // best-scoring playlist per raw label so each Stream button is one mirror.
+  // All unlabelled captures (a single-stream page and its children) collapse
+  // into one group.
+  const groups = new Map();
+  for (const m of built) {
+    const key = m.rawLabel || " default";
+    const winner = groups.get(key);
+    if (!winner || scoreMirror(m) > scoreMirror(winner)) groups.set(key, m);
+  }
+  const ranked = [...groups.values()].sort(
+    (a, b) => scoreMirror(b) - scoreMirror(a) || (a.ms ?? 9e9) - (b.ms ?? 9e9),
+  );
+  // Assign display names in ranked order (m1 = best). Keep a button's own name;
+  // fall back to "Stream N" only where the page gave none.
+  const out = ranked.map((m, i) => {
+    const { rawLabel, ...rest } = m;
+    return { ...rest, id: `m${i + 1}`, label: rawLabel || (ranked.length > 1 ? `Stream ${i + 1}` : "Stream 1") };
+  });
+  for (const m of out) emit("response", `mirror ${m.label}: ${describeMirror(m)}`);
+  return out;
+}
+
+/** Fetch a playlist in-context: reachability, latency, and master ladder info. */
+async function probeMirror(context, url, headers) {
+  const started = Date.now();
+  try {
+    const res = await context.request.get(url, {
+      headers: {
+        "user-agent": headers.userAgent,
+        accept: "*/*",
+        ...(headers.referer ? { referer: headers.referer } : {}),
+        ...(headers.origin ? { origin: headers.origin } : {}),
+        ...(headers.cookie ? { cookie: headers.cookie } : {}),
+        ...(headers.authorization ? { authorization: headers.authorization } : {}),
+      },
+      timeout: 8_000,
+      failOnStatusCode: false,
+    });
+    const ms = Date.now() - started;
+    const ct = res.headers()["content-type"] ?? "";
+    let body = "";
+    if (PLAYLIST_TYPE.test(ct) || PLAYLIST_URL.test(pathOf(url))) {
+      body = (await res.text()).slice(0, BODY_LIMIT);
+    } else {
+      await res.body().catch(() => {});
+    }
+    const cls = classifyPlaylist(body);
+    const master = parseMasterInfo(body);
+    return {
+      status: res.status(),
+      ms,
+      kind: cls.kind,
+      live: cls.live,
+      bandwidth: master.bandwidth,
+      width: master.width,
+      height: master.height,
+    };
+  } catch {
+    return { status: null, ms: Date.now() - started, kind: "unknown", live: null };
+  }
+}
+
+/** Highest BANDWIDTH and its RESOLUTION from a master playlist, if any. */
+export function parseMasterInfo(text) {
+  if (!text) return {};
+  let bandwidth = 0;
+  let width;
+  let height;
+  for (const line of text.split(/\r?\n/)) {
+    if (!/^#EXT-X-STREAM-INF/i.test(line)) continue;
+    const bw = Number(line.match(/[,:]BANDWIDTH=(\d+)/i)?.[1] ?? 0);
+    if (bw > bandwidth) {
+      bandwidth = bw;
+      const res = line.match(/RESOLUTION=(\d+)x(\d+)/i);
+      if (res) {
+        width = Number(res[1]);
+        height = Number(res[2]);
+      }
+    }
+  }
+  return bandwidth ? { bandwidth, width, height } : {};
+}
+
+/**
+ * Rank a mirror. Reachable and adaptive is best; higher bandwidth and
+ * resolution help; latency hurts; a 4xx/5xx is effectively out. Higher wins.
+ * @param {{status: number|null, live: boolean|null, bandwidth?: number, width?: number, kind: string, ms?: number}} m
+ */
+export function scoreMirror(m) {
+  let s = 0;
+  if (m.status === 200) s += 100;
+  else if (m.status == null) s += 45; // harvested, never confirmed — worth a try
+  else if (m.status >= 400) s -= 50;
+  else s += 20;
+  if (m.live) s += 8;
+  if (m.kind === "master") s += 6;
+  if (m.bandwidth) s += Math.min(m.bandwidth / 1_000_000, 25);
+  if (m.width) s += Math.min(m.width / 160, 12);
+  if (typeof m.ms === "number") s -= Math.min(m.ms / 120, 18);
+  return s;
+}
+
+function describeMirror(m) {
+  const bits = [];
+  if (m.status) bits.push(String(m.status));
+  if (m.width) bits.push(`${m.width}p`.replace(/^\d+/, () => `${m.height ?? m.width}`));
+  else if (m.bandwidth) bits.push(`${Math.round(m.bandwidth / 1000)}kbps`);
+  if (typeof m.ms === "number") bits.push(`${m.ms}ms`);
+  if (m.live) bits.push("live");
+  return bits.join(" · ") || "unconfirmed";
+}
+
+const SWITCH_TEXT =
+  /^\s*(stream|server|link|mirror|source|player|option|channel|feed|hd|sd|cdn)\s*[-#:]?\s*\d+\s*$/i;
+const SWITCH_TEXT_LOOSE = /\b(stream|server|mirror|link)\s*#?\s*\d+\b/i;
+
+/**
+ * Tag likely stream-switch controls across all frames and return a locator for
+ * each. Marks the elements with a data attribute so a stable selector survives
+ * the click. Skips big containers so we click the button, not its wrapper.
+ */
+async function tagSwitches(page) {
+  const out = [];
+  for (const frame of page.frames()) {
+    let labels;
+    try {
+      labels = await frame.evaluate(
+        ([strict, loose]) => {
+          const rxStrict = new RegExp(strict, "i");
+          const rxLoose = new RegExp(loose, "i");
+          const nodes = Array.from(
+            document.querySelectorAll("a,button,li,span,div,[role='button'],[onclick]"),
+          );
+          const found = [];
+          let i = 0;
+          for (const el of nodes) {
+            const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+            if (!text || text.length > 18) continue;
+            if (!rxStrict.test(text) && !rxLoose.test(text)) continue;
+            if (el.querySelectorAll("a,button,[role='button']").length > 1) continue;
+            const box = el.getBoundingClientRect();
+            if (box.width < 8 || box.height < 8) continue;
+            el.setAttribute("data-latch-switch", String(i));
+            found.push({ i, label: text });
+            i += 1;
+            if (i >= 10) break;
+          }
+          return found;
+        },
+        [SWITCH_TEXT.source, SWITCH_TEXT_LOOSE.source],
+      );
+    } catch {
+      labels = [];
+    }
+    for (const l of labels ?? []) {
+      out.push({ frame, sel: `[data-latch-switch="${l.i}"]`, label: l.label });
+    }
+  }
+  return out;
 }
 
 /**

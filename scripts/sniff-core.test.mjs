@@ -5,7 +5,9 @@ import {
   cookieHeader,
   expiryFromUrl,
   mergeCookies,
+  parseMasterInfo,
   pickPlaylist,
+  scoreMirror,
 } from "./sniff-core.mjs";
 
 const MASTER = `#EXTM3U
@@ -70,6 +72,33 @@ test("expiryFromUrl reads seconds, milliseconds, hdnts, jwt, and ignores stale v
   assert.equal(expiryFromUrl(`https://cdn.example/a.m3u8?exp=${Math.floor(now / 1000) - 5}`, now), null);
   assert.equal(expiryFromUrl("https://cdn.example/plain.m3u8", now), null);
   assert.equal(expiryFromUrl("not a url", now), null);
+});
+
+test("parseMasterInfo takes the top bandwidth and its resolution", () => {
+  const master = `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360
+low.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080
+high.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720
+mid.m3u8
+`;
+  assert.deepEqual(parseMasterInfo(master), { bandwidth: 5000000, width: 1920, height: 1080 });
+  assert.deepEqual(parseMasterInfo("#EXTM3U\n#EXT-X-TARGETDURATION:6\nseg.ts\n"), {});
+  assert.deepEqual(parseMasterInfo(""), {});
+});
+
+test("scoreMirror ranks reachable HD above SD, and dead mirrors last", () => {
+  const hd = { status: 200, live: true, kind: "master", bandwidth: 5_000_000, width: 1920, ms: 200 };
+  const sd = { status: 200, live: true, kind: "master", bandwidth: 800_000, width: 640, ms: 200 };
+  const slow = { status: 200, live: true, kind: "media", ms: 1800 };
+  const dead = { status: 403, live: null, kind: "unknown", ms: 150 };
+  const unknown = { status: null, live: null, kind: "unknown", ms: 300 };
+  assert.ok(scoreMirror(hd) > scoreMirror(sd), "HD beats SD");
+  assert.ok(scoreMirror(sd) > scoreMirror(slow), "SD beats a slow bare media playlist");
+  assert.ok(scoreMirror(slow) > scoreMirror(unknown), "confirmed beats unconfirmed");
+  assert.ok(scoreMirror(unknown) > scoreMirror(dead), "unconfirmed beats a 403");
+  assert.ok(scoreMirror(dead) < 0, "a dead mirror scores negative");
 });
 
 test("cookie helpers build and merge a Cookie header without duplicates", () => {

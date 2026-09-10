@@ -20,7 +20,7 @@ export function buildM3U(
       .join(" ");
     lines.push(`#EXTINF:${attrs},${escapeAttr(channel.name)}`);
     const url = opts.viaProxy
-      ? `${origin}${channelProxyPath(channel, origin)}`
+      ? `${origin}${channelProxyPath(channel)}`
       : channelUpstreamAbsolute(channel, origin);
     lines.push(url);
   }

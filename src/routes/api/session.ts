@@ -6,6 +6,7 @@ import {
   expireSession,
   planeSnapshot,
   restoreChannel,
+  switchMirror,
 } from "@/lib/session/capture";
 import { registerChannel, setAutoRefresh, setSessionHeaders, setSessionToken, unregisterChannel } from "@/lib/session/store";
 import type { Channel } from "@/lib/hls/catalog";
@@ -25,7 +26,8 @@ export const Route = createFileRoute("/api/session")({
             | "token"
             | "headers"
             | "sniff"
-            | "restore";
+            | "restore"
+            | "switch";
           channelId?: string;
           autoRefresh?: boolean;
           channel?: Channel;
@@ -34,6 +36,7 @@ export const Route = createFileRoute("/api/session")({
           referer?: string;
           pageUrl?: string;
           name?: string;
+          mirrorId?: string;
         };
 
         if (body.action === "auto") {
@@ -75,6 +78,12 @@ export const Route = createFileRoute("/api/session")({
 
         if (body.action === "headers") {
           setSessionHeaders(body.channelId, body.userAgent ?? "", body.referer ?? "");
+          return jsonResponse(planeSnapshot());
+        }
+
+        if (body.action === "switch") {
+          if (!body.mirrorId) return jsonResponse({ error: "Missing mirrorId" }, 400);
+          switchMirror(body.channelId, body.mirrorId);
           return jsonResponse(planeSnapshot());
         }
 

@@ -92,12 +92,14 @@ export function firstMediaUrl(text: string, playlistUrl: string): string | null 
 
 export function buildProxyPath(
   upstream: string,
-  opts: { channelId?: string; userAgent?: string; referer?: string },
+  opts: { channelId?: string; userAgent?: string; referer?: string; mirrorId?: string },
 ) {
   const params = new URLSearchParams();
   if (opts.channelId) params.set("ch", opts.channelId);
   params.set("u", upstream);
-  if (!opts.channelId) {
+  if (opts.channelId) {
+    if (opts.mirrorId) params.set("m", opts.mirrorId);
+  } else {
     if (opts.userAgent) params.set("ua", opts.userAgent);
     if (opts.referer) params.set("rf", opts.referer);
   }

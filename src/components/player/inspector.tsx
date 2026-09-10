@@ -42,7 +42,7 @@ type InspectPayload = {
 export function Inspector({ channel, origin }: { channel: Channel; origin: string }) {
   const refreshToken = useLatchStore((s) => s.refreshToken);
   const expireToken = useLatchStore((s) => s.expireToken);
-  const proxyPath = channelProxyPath(channel, origin);
+  const proxyPath = channelProxyPath(channel);
   const inspectUrl = channel.builtin
     ? `/api/inspect?ch=${encodeURIComponent(channel.id)}`
     : `/api/inspect?ch=${encodeURIComponent(channel.id)}&u=${encodeURIComponent(channel.url)}&ua=${encodeURIComponent(channel.userAgent)}&rf=${encodeURIComponent(channel.referer)}`;

@@ -8,15 +8,16 @@ import { cn } from "@/lib/utils";
 type Props = {
   channel: Channel;
   origin: string;
+  mirrorId?: string;
 };
 
-export function HlsPlayer({ channel, origin }: Props) {
+export function HlsPlayer({ channel, origin, mirrorId }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
-  const src = `${origin}${channelProxyPath(channel, origin)}`;
+  const src = `${origin}${channelProxyPath(channel, { mirrorId })}`;
   const expired = channel.kind === "token" && (channel.tokenExpiresAt ?? 0) < Date.now();
 
   useEffect(() => {

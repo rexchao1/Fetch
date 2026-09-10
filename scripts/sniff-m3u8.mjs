@@ -118,8 +118,12 @@ async function main() {
   if (result.playlist.expiresAt) {
     log(`expires   ${new Date(result.playlist.expiresAt).toISOString()}`);
   }
-  if (result.candidates.length > 1) {
-    log(`also saw  ${result.candidates.length - 1} other playlist URL${result.candidates.length > 2 ? "s" : ""}`);
+  if (result.mirrors.length > 1) {
+    log(`mirrors   ${result.mirrors.length} found:`);
+    for (const m of result.mirrors) {
+      const res = m.width ? `${m.height}p` : m.bandwidth ? `${Math.round(m.bandwidth / 1000)}k` : "";
+      log(`   ${m.id} ${m.label.padEnd(10)} ${String(m.status ?? "…").padEnd(4)} ${res.padEnd(6)} ${m.ms ?? "?"}ms`);
+    }
   }
 
   // The page you typed is the channel's identity (re-sniffs find it by this);
@@ -129,6 +133,7 @@ async function main() {
     name: args.name || undefined,
     title: result.title,
     playlist: result.playlist,
+    mirrors: result.mirrors,
     candidates: result.candidates,
     events: result.events,
   };

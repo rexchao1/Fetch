@@ -169,13 +169,15 @@ export function channelUpstream(channel: Channel, origin: string): string {
   return url.href;
 }
 
-export function channelProxyPath(channel: Channel, _origin?: string) {
+export function channelProxyPath(channel: Channel, opts?: { mirrorId?: string }) {
   const params = new URLSearchParams();
   params.set("ch", channel.id);
   if (channel.source === "sniff") {
     // The session holds the (rotating) playlist; the page is what re-sniffs it
-    // if the server has forgotten the channel.
+    // if the server has forgotten the channel. A mirror id pins which source
+    // to play — the dashboard sets it when you switch.
     if (channel.pageUrl) params.set("page", channel.pageUrl);
+    if (opts?.mirrorId) params.set("m", opts.mirrorId);
   } else if (!channel.builtin) {
     params.set("u", channel.url);
     if (channel.userAgent) params.set("ua", channel.userAgent);
