@@ -1,16 +1,21 @@
 import { CHROME_UA, PROBE_USER_AGENTS } from "./catalog";
+import { buildRefererCandidates } from "./referer";
 import { tokenFromPlaylistUrl } from "./token";
 import { useLatchStore } from "@/lib/store";
 import type { ProbeCell } from "./types";
 
-export async function ingestPlaylist(raw: string) {
+export { buildRefererCandidates, type RefererCandidate } from "./referer";
+
+export async function ingestPlaylist(raw: string, pageUrl?: string) {
   const target = raw.trim();
   const parsed = new URL(target);
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("Need an http(s) playlist URL");
   }
 
+  const page = pageUrl?.trim() || "";
   const token = tokenFromPlaylistUrl(target);
+  const referers = buildRefererCandidates(target, page);
   let userAgent = CHROME_UA;
   let referer = `${parsed.origin}/`;
 
@@ -21,10 +26,7 @@ export async function ingestPlaylist(raw: string) {
       body: JSON.stringify({
         url: target,
         userAgents: PROBE_USER_AGENTS.map((item) => ({ id: item.id, value: item.value })),
-        referers: [
-          { id: "none", value: "" },
-          { id: "target", value: referer },
-        ],
+        referers,
       }),
     });
     const data = (await res.json()) as { cells?: ProbeCell[] };
@@ -33,12 +35,15 @@ export async function ingestPlaylist(raw: string) {
     );
     if (winner) {
       userAgent = PROBE_USER_AGENTS.find((item) => item.id === winner.uaId)?.value ?? CHROME_UA;
-      referer = winner.refererId === "target" ? referer : "";
+      referer = referers.find((item) => item.id === winner.refererId)?.value ?? "";
     }
   } catch {
     /* play it anyway */
   }
 
+  // A gate that keyed on the page referer should re-sniff against that page,
+  // not the playlist, if the token later rotates.
+  const channelPage = page || target;
   const state = useLatchStore.getState();
   const existing = state.custom.find((channel) => channel.url === target);
   const name = parsed.hostname.replace(/^www\./, "") || "Stream";
@@ -59,7 +64,7 @@ export async function ingestPlaylist(raw: string) {
     token: token || undefined,
     note: "Added from playlist URL.",
     live: true,
-    pageUrl: target,
+    pageUrl: channelPage,
   });
 
   await fetch("/api/session", {
@@ -72,7 +77,7 @@ export async function ingestPlaylist(raw: string) {
         name,
         group: "Live",
         url: target,
-        pageUrl: target,
+        pageUrl: channelPage,
         userAgent,
         referer,
         token: token || undefined,
