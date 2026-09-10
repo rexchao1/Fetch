@@ -17,6 +17,32 @@ npm run lint
 npm test
 ```
 
+## Sniff a playlist off a page
+
+You have a page that plays video but no `.m3u8` URL. Latch can watch the
+page's network tab and take the playlist it loads, token and all:
+
+```
+npm run sniff -- https://example.com/watch/123
+npm run sniff -- <page> --name "Cup Final" --server http://homelab:8080
+npm run sniff -- <page> --dry-run      # print what it found, submit nothing
+npm run sniff -- <page> --headed       # watch the browser do it
+```
+
+The script opens the page in headless Chromium (`npx playwright install
+chromium` once), nudges any player to start, records every `.m3u8` request
+with the User-Agent, Referer, Origin, cookies and Authorization the page sent,
+prefers the master playlist, and POSTs the result to `/api/capture`. The
+channel appears on the Guide within a few seconds, selected and playing, and
+Jellyfin gets a stable `/api/hls?ch=<id>&page=<page>` line.
+
+The same sniff runs inside the server when Playwright is installed next to
+it (the homelab dev server has it; Vercel does not): the Capture deck has a
+"Sniff a page" form, and TTL refresh / a 403 from the origin / a restart
+re-sniff the page automatically. Without Playwright the deck's log tells you
+to run the script instead. Signed URLs with `exp=`, Akamai `hdnts`, or a JWT
+`exp` set the session's expiry so the 80% refresh fires before the token dies.
+
 Node 20+. `npm run dev` / `build` / `preview` all resolve `VITE_AUTH_ENABLED`
 through `scripts/with-app-env.mjs`, so a dev server must be started with one
 of those scripts, never bare `vite dev` — `npm run check:auth` catches the
@@ -29,10 +55,12 @@ case where it wasn't.
 | `src/routes/index.tsx` | Home: channel list, player, inspector. |
 | `src/routes/playlist.tsx` | M3U export — the URLs Jellyfin actually imports. |
 | `src/routes/probe.tsx` | Probe lab for testing a playlist URL before adding it as a channel. |
-| `src/routes/capture.tsx` | Capture deck. |
-| `src/routes/api/` | Server routes: `hls` (the proxy itself), `probe`, `inspect`, `session`, `token`, `logo`, `gate`. |
+| `src/routes/capture.tsx` | Capture deck: sniff a page, watch jobs, expire/recapture sessions. |
+| `src/routes/api/` | Server routes: `hls` (the proxy itself), `capture` (sniff drop box + list), `probe`, `inspect`, `session`, `token`, `logo`, `gate`. |
 | `src/lib/store.ts` | The channel/session client store (`useLatchStore`). |
+| `src/lib/session/` | Server-side session plane: in-memory sessions, capture jobs, `sniff.ts` commits a sniffed page. |
 | `src/lib/hls/` | Playlist ingest and rewrite, the `LatchProxy` user agent. |
+| `scripts/sniff-core.mjs` | The Playwright network watcher, shared by `scripts/sniff-m3u8.mjs` (CLI) and the server. |
 | `src/lib/auth/` | Better Auth wiring — own email/password plus the shared Grok auth broker for Google/X. Off by default (`VITE_AUTH_ENABLED`). |
 | `src/lib/app-data/` | Server-only connector/AppData client. Never imported from client code. |
 | `src/lib/db.ts` | Postgres in production, PGLite fallback locally — see `migrations/`. |

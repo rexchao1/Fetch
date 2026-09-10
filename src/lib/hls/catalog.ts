@@ -34,6 +34,13 @@ export type Channel = {
   token?: string;
   tokenTtlMs?: number;
   tokenExpiresAt?: number;
+  /**
+   * "sniff": the playlist was captured from `pageUrl` by the capture plane
+   * (`scripts/sniff-m3u8.mjs` or the in-app sniff). The server session is
+   * authoritative for the URL and headers, so the proxy path carries the page
+   * instead of pinning a playlist URL that rotates.
+   */
+  source?: "sniff";
 };
 
 export const BUILTIN_CHANNELS: Channel[] = [
@@ -165,7 +172,11 @@ export function channelUpstream(channel: Channel, origin: string): string {
 export function channelProxyPath(channel: Channel, _origin?: string) {
   const params = new URLSearchParams();
   params.set("ch", channel.id);
-  if (!channel.builtin) {
+  if (channel.source === "sniff") {
+    // The session holds the (rotating) playlist; the page is what re-sniffs it
+    // if the server has forgotten the channel.
+    if (channel.pageUrl) params.set("page", channel.pageUrl);
+  } else if (!channel.builtin) {
     params.set("u", channel.url);
     if (channel.userAgent) params.set("ua", channel.userAgent);
     if (channel.referer) params.set("rf", channel.referer);

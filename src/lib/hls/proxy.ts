@@ -7,7 +7,7 @@ import {
   rewriteM3U8,
   summarizePlaylist,
 } from "./rewrite";
-import { enqueueCapture, ensureScheduler } from "@/lib/session/capture";
+import { enqueueCapture, enqueueSniff, ensureScheduler } from "@/lib/session/capture";
 import {
   ensureSeed,
   getSession,
@@ -56,6 +56,18 @@ export async function handleHlsProxy(request: Request) {
   const raw = reqUrl.searchParams.get("u");
   const queryUa = reqUrl.searchParams.get("ua") ?? CHROME_UA;
   const queryRf = reqUrl.searchParams.get("rf") ?? "";
+  const page = reqUrl.searchParams.get("page");
+
+  if (channelId && !raw && page && !getSession(channelId)) {
+    // A sniffed channel this process has forgotten (restart, cold function):
+    // the M3U/Guide only know the page, so the capture plane re-sniffs it and
+    // the player's retry lands on the fresh session.
+    try {
+      enqueueSniff(page, { channelId });
+    } catch (error) {
+      return textResponse(error instanceof Error ? error.message : "Bad page URL", 400);
+    }
+  }
 
   if (channelId && raw && !getSession(channelId)) {
     registerChannel({
@@ -74,7 +86,12 @@ export async function handleHlsProxy(request: Request) {
 
   const session = channelId ? getSession(channelId) : undefined;
   const targetRaw = raw || session?.playlistUrl;
-  if (!targetRaw) return textResponse("Missing u", 400);
+  if (!targetRaw) {
+    if (session?.source === "sniff" || (session && page)) {
+      return textResponse("503 capture pending — the page is being sniffed", 503);
+    }
+    return textResponse("Missing u", 400);
+  }
 
   let upstream: URL;
   try {

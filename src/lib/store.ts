@@ -22,6 +22,8 @@ type LatchState = {
   expireToken: (id: string) => void;
   applyHeaders: (id: string, userAgent: string, referer: string) => Promise<void>;
   setToken: (id: string, token: string) => void;
+  /** Pull channels the capture plane registered on the server into the lineup. */
+  adoptServerChannels: (channels: Channel[]) => void;
 };
 
 function mintId() {
@@ -82,6 +84,14 @@ export const useLatchStore = create<LatchState>((set, get) => ({
     set({ custom, hidden: loaded.hidden, hydrated: true });
     queueMicrotask(() => {
       for (const channel of allChannels(custom, loaded.hidden)) {
+        // Sniffed channels are the server's to refresh; re-registering the
+        // local copy would push a stale URL/token over a fresher session.
+        // After a server restart, though, this copy is all that remembers the
+        // name and page, so hand it back and let the plane re-sniff.
+        if (channel.source === "sniff") {
+          restoreSession(channel);
+          continue;
+        }
         if (!channel.builtin || channel.token) syncSession(channel);
       }
     });
@@ -182,7 +192,45 @@ export const useLatchStore = create<LatchState>((set, get) => ({
       body: JSON.stringify({ action: "token", channelId: id, token: token.trim() }),
     });
   },
+  adoptServerChannels: (incoming) => {
+    const { custom, hidden } = get();
+    let next = custom;
+    let changed = false;
+    let newest: string | undefined;
+    for (const channel of incoming) {
+      if (!channel?.id || channel.builtin) continue;
+      const local = next.find((c) => c.id === channel.id);
+      if (!local) {
+        next = [...next, channel];
+        changed = true;
+        if (channel.url) newest = channel.id;
+        continue;
+      }
+      const stale =
+        local.url !== channel.url ||
+        (local.token ?? "") !== (channel.token ?? "") ||
+        local.name !== channel.name ||
+        local.userAgent !== channel.userAgent ||
+        local.referer !== channel.referer ||
+        Boolean(local.live) !== Boolean(channel.live);
+      if (stale) {
+        next = next.map((c) => (c.id === channel.id ? { ...c, ...channel } : c));
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    persist(next, hidden);
+    set({ custom: next, ...(newest ? { selectedId: newest } : {}) });
+  },
 }));
+
+function restoreSession(channel: Channel) {
+  void fetch("/api/session", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "restore", channel }),
+  });
+}
 
 function syncSession(channel: Channel) {
   void fetch("/api/session", {

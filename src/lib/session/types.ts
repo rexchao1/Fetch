@@ -15,7 +15,7 @@ export type StreamSession = {
   capturedAt: number;
   expiresAt: number | null;
   generation: number;
-  source: "seed" | "playwright" | "manual" | "failover";
+  source: "seed" | "playwright" | "manual" | "failover" | "sniff";
   lastReason: string;
   live: boolean;
   token?: string;

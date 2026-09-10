@@ -13,6 +13,7 @@ lives.
 | `npm run lint` | ESLint |
 | `npm test` | `scripts/**/*.test.mjs` plus the `src/lib` unit tests |
 | `npm run check:auth` | Fails if a live dev server and the next build disagree about `VITE_AUTH_ENABLED` |
+| `npm run sniff -- <page-url>` | Headless Chromium watches the page for an `.m3u8`, submits it to `/api/capture` |
 
 ## Rules
 
@@ -29,6 +30,15 @@ lives.
   on preview startup automatically. Add tables as new ordered files; don't
   edit an existing one. `migrations/auth/` is the Better Auth schema and is
   out of scope for both — don't touch it by hand.
+- Playwright is imported only in `scripts/sniff-core.mjs`, lazily and through
+  a non-literal specifier, so the Vercel server bundle never traces it and a
+  server without it degrades to "run the script". Keep it that way: no
+  top-level or literal `import("playwright")` anywhere under `src/`.
+- A channel with `source: "sniff"` is owned by the server session: its proxy
+  path carries `page=` instead of `u=`, the client never re-registers its
+  local copy over a live session (it sends `restore` only when the server has
+  forgotten the id), and every playlist URL the capture plane stores passes
+  `assertSafeUpstream` first.
 - Connector/AppData calls (Drive, Gmail, calendar) are backend-only: a
   `createServerFn` handler dynamic-imports `@/lib/app-data/client.server`.
   Never call it, or fetch the connectors host, from a route component,

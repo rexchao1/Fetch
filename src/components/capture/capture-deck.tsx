@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Radio, RefreshCw, TimerOff } from "lucide-react";
-import type { ReactNode } from "react";
+import { Radio, RefreshCw, ScanSearch, TimerOff } from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,9 +29,12 @@ export function CaptureDeck() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      return (await res.json()) as PlaneSnapshot;
+      const data = (await res.json()) as PlaneSnapshot & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? `session ${res.status}`);
+      return data;
     },
     onSuccess: (data) => client.setQueryData(["plane"], data),
+    onError: (error) => toast.error(error.message),
   });
 
   const data = plane.data;
@@ -46,6 +51,11 @@ export function CaptureDeck() {
           hits Latch. Expire a lab channel, then play it — the 403 is a backstop, not the engine.
         </p>
       </header>
+
+      <SniffForm
+        busy={act.isPending}
+        onSubmit={(pageUrl, name) => act.mutate({ action: "sniff", pageUrl, name })}
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <PlaneCard
@@ -108,6 +118,66 @@ export function CaptureDeck() {
   );
 }
 
+function SniffForm({
+  busy,
+  onSubmit,
+}: {
+  busy: boolean;
+  onSubmit: (pageUrl: string, name: string) => void;
+}) {
+  const [pageUrl, setPageUrl] = useState("");
+  const [name, setName] = useState("");
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    onSubmit(pageUrl.trim(), name.trim());
+    setPageUrl("");
+    setName("");
+  }
+
+  return (
+    <section className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+      <div className="mb-3">
+        <h2 className="text-xs font-medium tracking-wide text-muted uppercase">Sniff a page</h2>
+        <p className="mt-1 text-sm text-muted">
+          Latch opens the page in Chromium, watches its network tab for the first `.m3u8`, and
+          keeps the URL with whatever token, Referer and cookies the page sent. The channel lands
+          on the Guide by itself.
+        </p>
+      </div>
+      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          value={pageUrl}
+          onChange={(e) => setPageUrl(e.target.value)}
+          placeholder="https://…/watch/123"
+          aria-label="Page URL"
+          inputMode="url"
+          autoComplete="off"
+          spellCheck={false}
+          required
+          className="min-w-0 flex-1"
+        />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Name (optional)"
+          aria-label="Channel name"
+          autoComplete="off"
+          className="sm:w-48"
+        />
+        <Button type="submit" disabled={busy || !pageUrl.trim()} className="shrink-0">
+          <ScanSearch className="size-4" />
+          Sniff
+        </Button>
+      </form>
+      <p className="mt-3 font-mono text-xs leading-relaxed text-subtle">
+        No Playwright on this server? From the machine that has it:{" "}
+        <span className="text-muted">npm run sniff -- &lt;page-url&gt; --server {typeof window === "undefined" ? "http://localhost:8080" : window.location.origin}</span>
+      </p>
+    </section>
+  );
+}
+
 function PlaneCard({
   kicker,
   title,
@@ -135,7 +205,9 @@ function PlaneCard({
 
 function NetworkLog({ job }: { job?: CaptureJob }) {
   if (!job) {
-    return <p className="text-sm text-muted">No capture yet. Run one on a session below.</p>;
+    return (
+      <p className="text-sm text-muted">No capture yet. Sniff a page above, or run one on a session below.</p>
+    );
   }
   return (
     <div className="flex h-full min-h-56 flex-col">

@@ -1,19 +1,35 @@
-import { TOKEN_TTL_MS } from "@/lib/hls/catalog";
+import { TOKEN_TTL_MS, type Channel } from "@/lib/hls/catalog";
 import { applyToken } from "@/lib/hls/token";
+import { commitCapture, sniff, sniffAvailable, validPage } from "./sniff";
 import {
   commitSession,
   dueForRefresh,
   getRecipe,
   getSession,
   isAutoRefresh,
+  listRecipes,
   listSessions,
   mintPlaylistUrl,
   patchSession,
+  registerChannel,
   seedFromChannel,
   snapshot,
   touchHealth,
 } from "./store";
 import type { CaptureEvent, CaptureJob, PlaneSnapshot } from "./types";
+
+const SNIFF_TIMEOUT_MS = 30_000;
+const EVENT_KINDS = new Set<CaptureEvent["kind"]>([
+  "launch",
+  "navigate",
+  "document",
+  "iframe",
+  "request",
+  "response",
+  "permit",
+  "commit",
+  "error",
+]);
 
 const jobs: CaptureJob[] = [];
 const inflight = new Map<string, Promise<CaptureJob>>();
@@ -129,6 +145,100 @@ export function enqueueCapture(channelId: string, reason: string): CaptureJob {
   return job;
 }
 
+/**
+ * Start a capture for a page the user typed (deck form, or the proxy seeing a
+ * `page=` request for a channel it no longer holds). Registers a placeholder
+ * channel first so the job has a recipe to commit against; the real playlist
+ * and headers land when the sniff finishes.
+ */
+export function enqueueSniff(
+  rawPage: string,
+  opts: { name?: string; channelId?: string } = {},
+): CaptureJob {
+  const pageUrl = validPage(rawPage);
+  const existing =
+    (opts.channelId ? getRecipe(opts.channelId) : undefined) ??
+    listRecipes().find((channel) => !channel.builtin && channel.pageUrl === pageUrl);
+  if (existing && !existing.builtin) {
+    return enqueueCapture(existing.id, "sniff");
+  }
+  const host = new URL(pageUrl).hostname.replace(/^www\./, "");
+  const name = (opts.name?.trim() || host).slice(0, 60);
+  const stub: Channel = {
+    id: opts.channelId ?? `ch-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    group: "Live",
+    mark: name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2) || "Sn",
+    url: "",
+    pageUrl,
+    userAgent: "",
+    referer: pageUrl,
+    kind: "open",
+    builtin: false,
+    live: true,
+    note: `Captured from ${host}.`,
+    source: "sniff",
+  };
+  registerChannel(stub);
+  return enqueueCapture(stub.id, "sniff");
+}
+
+/**
+ * The Guide handing back a sniffed channel this process no longer holds
+ * (restart, cold function). Keeps the name and page the user gave it, seeds
+ * the last-known playlist so the proxy answers meanwhile, and re-sniffs.
+ * A channel the server still knows is left alone: its session is fresher.
+ */
+export function restoreChannel(channel: Channel) {
+  if (!channel?.id || channel.builtin || channel.source !== "sniff" || !channel.pageUrl) return;
+  if (getRecipe(channel.id)) return;
+  let pageUrl: string;
+  try {
+    pageUrl = validPage(channel.pageUrl);
+  } catch {
+    return;
+  }
+  registerChannel({
+    ...channel,
+    pageUrl,
+    kind: "open",
+    builtin: false,
+    source: "sniff",
+    name: String(channel.name || "").slice(0, 60) || new URL(pageUrl).hostname,
+  });
+  enqueueCapture(channel.id, "restore");
+}
+
+/** A finished job reported by the CLI script, so the deck's log shows it. */
+export function recordCaptureJob(input: {
+  channelId: string;
+  pageUrl: string;
+  reason: string;
+  events: CaptureEvent[];
+  generation: number;
+}) {
+  const now = Date.now();
+  const events = input.events
+    .filter((event) => event && EVENT_KINDS.has(event.kind) && typeof event.detail === "string")
+    .map((event) => ({ t: Number(event.t) || 0, kind: event.kind, detail: event.detail.slice(0, 200) }));
+  const last = events.at(-1)?.t ?? 0;
+  events.push({ t: last + 1, kind: "commit", detail: `generation ${input.generation} · atomic swap` });
+  const job: CaptureJob = {
+    id: `cap-${Math.random().toString(36).slice(2, 8)}`,
+    channelId: input.channelId,
+    pageUrl: input.pageUrl,
+    reason: input.reason,
+    status: "ok",
+    startedAt: now - last - 1,
+    finishedAt: now,
+    events,
+    generation: input.generation,
+  };
+  jobs.unshift(job);
+  if (jobs.length > JOB_LIMIT) jobs.length = JOB_LIMIT;
+  return job;
+}
+
 export function expireSession(channelId: string) {
   const session = getSession(channelId);
   const recipe = getRecipe(channelId);
@@ -176,6 +286,10 @@ async function runCapture(job: CaptureJob): Promise<CaptureJob> {
     job.finishedAt = Date.now();
     pushEvent(job, "error", "channel not registered");
     return job;
+  }
+
+  if (recipe.source === "sniff" && recipe.pageUrl) {
+    return runSniffCapture(job, recipe);
   }
 
   job.status = "running";
@@ -239,6 +353,57 @@ async function runCapture(job: CaptureJob): Promise<CaptureJob> {
     if (recipeFallback && !getSession(job.channelId)) {
       commitSession(seedFromChannel(recipeFallback, "capture failed"));
     }
+    return job;
+  }
+}
+
+/**
+ * The real capture plane: open the channel's page in Chromium and take the
+ * playlist it loads. Needs Playwright on this machine (the homelab dev
+ * server has it; Vercel does not). When it is missing, the previous session
+ * is kept untouched and the job says which script to run instead.
+ */
+async function runSniffCapture(job: CaptureJob, recipe: Channel): Promise<CaptureJob> {
+  job.status = "running";
+  const pageUrl = recipe.pageUrl!;
+  if (!(await sniffAvailable())) {
+    job.status = "error";
+    job.error = "Playwright is not installed on this server";
+    job.finishedAt = Date.now();
+    pushEvent(job, "error", `${job.error} · run: node scripts/sniff-m3u8.mjs ${pageUrl}`);
+    return job;
+  }
+  try {
+    const result = await sniff({
+      pageUrl,
+      timeoutMs: SNIFF_TIMEOUT_MS,
+      onEvent: (event) => {
+        const kind = EVENT_KINDS.has(event.kind as CaptureEvent["kind"])
+          ? (event.kind as CaptureEvent["kind"])
+          : "request";
+        pushEvent(job, kind, event.detail);
+      },
+    });
+    if (!result.playlist) {
+      throw new Error(`no .m3u8 request seen on ${pageUrl}`);
+    }
+    const { session } = commitCapture({
+      pageUrl,
+      channelId: recipe.id,
+      title: result.title,
+      playlist: result.playlist,
+      reason: job.reason,
+    });
+    pushEvent(job, "commit", `generation ${session.generation} · atomic swap`);
+    job.generation = session.generation;
+    job.status = "ok";
+    job.finishedAt = Date.now();
+    return job;
+  } catch (error) {
+    job.status = "error";
+    job.error = error instanceof Error ? error.message : "sniff failed";
+    job.finishedAt = Date.now();
+    pushEvent(job, "error", job.error);
     return job;
   }
 }

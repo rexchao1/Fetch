@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CaptureRouteImport } from './routes/capture'
 import { Route as PlaylistRouteImport } from './routes/playlist'
 import { Route as ProbeRouteImport } from './routes/probe'
+import { Route as ApiCaptureRouteImport } from './routes/api/capture'
 import { Route as ApiGateRouteImport } from './routes/api/gate'
 import { Route as ApiHlsRouteImport } from './routes/api/hls'
 import { Route as ApiInspectRouteImport } from './routes/api/inspect'
@@ -39,6 +40,11 @@ const PlaylistRoute = PlaylistRouteImport.update({
 const ProbeRoute = ProbeRouteImport.update({
   id: '/probe',
   path: '/probe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCaptureRoute = ApiCaptureRouteImport.update({
+  id: '/api/capture',
+  path: '/api/capture',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGateRoute = ApiGateRouteImport.update({
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/capture': typeof CaptureRoute
   '/playlist': typeof PlaylistRoute
   '/probe': typeof ProbeRoute
+  '/api/capture': typeof ApiCaptureRoute
   '/api/gate': typeof ApiGateRoute
   '/api/hls': typeof ApiHlsRoute
   '/api/inspect': typeof ApiInspectRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/capture': typeof CaptureRoute
   '/playlist': typeof PlaylistRoute
   '/probe': typeof ProbeRoute
+  '/api/capture': typeof ApiCaptureRoute
   '/api/gate': typeof ApiGateRoute
   '/api/hls': typeof ApiHlsRoute
   '/api/inspect': typeof ApiInspectRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/capture': typeof CaptureRoute
   '/playlist': typeof PlaylistRoute
   '/probe': typeof ProbeRoute
+  '/api/capture': typeof ApiCaptureRoute
   '/api/gate': typeof ApiGateRoute
   '/api/hls': typeof ApiHlsRoute
   '/api/inspect': typeof ApiInspectRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/capture'
     | '/playlist'
     | '/probe'
+    | '/api/capture'
     | '/api/gate'
     | '/api/hls'
     | '/api/inspect'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/capture'
     | '/playlist'
     | '/probe'
+    | '/api/capture'
     | '/api/gate'
     | '/api/hls'
     | '/api/inspect'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/capture'
     | '/playlist'
     | '/probe'
+    | '/api/capture'
     | '/api/gate'
     | '/api/hls'
     | '/api/inspect'
@@ -164,6 +176,7 @@ export interface RootRouteChildren {
   CaptureRoute: typeof CaptureRoute
   PlaylistRoute: typeof PlaylistRoute
   ProbeRoute: typeof ProbeRoute
+  ApiCaptureRoute: typeof ApiCaptureRoute
   ApiGateRoute: typeof ApiGateRoute
   ApiHlsRoute: typeof ApiHlsRoute
   ApiInspectRoute: typeof ApiInspectRoute
@@ -201,6 +214,13 @@ declare module '@tanstack/react-router' {
       path: '/probe'
       fullPath: '/probe'
       preLoaderRoute: typeof ProbeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/capture': {
+      id: '/api/capture'
+      path: '/api/capture'
+      fullPath: '/api/capture'
+      preLoaderRoute: typeof ApiCaptureRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/gate': {
@@ -260,6 +280,7 @@ const rootRouteChildren: RootRouteChildren = {
   CaptureRoute: CaptureRoute,
   PlaylistRoute: PlaylistRoute,
   ProbeRoute: ProbeRoute,
+  ApiCaptureRoute: ApiCaptureRoute,
   ApiGateRoute: ApiGateRoute,
   ApiHlsRoute: ApiHlsRoute,
   ApiInspectRoute: ApiInspectRoute,
