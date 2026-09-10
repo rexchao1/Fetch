@@ -11,8 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CaptureRouteImport } from './routes/capture'
-import { Route as PlaylistRouteImport } from './routes/playlist'
-import { Route as ProbeRouteImport } from './routes/probe'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiCaptureRouteImport } from './routes/api/capture'
 import { Route as ApiGateRouteImport } from './routes/api/gate'
 import { Route as ApiHlsRouteImport } from './routes/api/hls'
@@ -32,14 +31,9 @@ const CaptureRoute = CaptureRouteImport.update({
   path: '/capture',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlaylistRoute = PlaylistRouteImport.update({
-  id: '/playlist',
-  path: '/playlist',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProbeRoute = ProbeRouteImport.update({
-  id: '/probe',
-  path: '/probe',
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCaptureRoute = ApiCaptureRouteImport.update({
@@ -86,8 +80,7 @@ const ApiTokenRoute = ApiTokenRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/capture': typeof CaptureRoute
-  '/playlist': typeof PlaylistRoute
-  '/probe': typeof ProbeRoute
+  '/settings': typeof SettingsRoute
   '/api/capture': typeof ApiCaptureRoute
   '/api/gate': typeof ApiGateRoute
   '/api/hls': typeof ApiHlsRoute
@@ -100,8 +93,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/capture': typeof CaptureRoute
-  '/playlist': typeof PlaylistRoute
-  '/probe': typeof ProbeRoute
+  '/settings': typeof SettingsRoute
   '/api/capture': typeof ApiCaptureRoute
   '/api/gate': typeof ApiGateRoute
   '/api/hls': typeof ApiHlsRoute
@@ -115,8 +107,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/capture': typeof CaptureRoute
-  '/playlist': typeof PlaylistRoute
-  '/probe': typeof ProbeRoute
+  '/settings': typeof SettingsRoute
   '/api/capture': typeof ApiCaptureRoute
   '/api/gate': typeof ApiGateRoute
   '/api/hls': typeof ApiHlsRoute
@@ -131,8 +122,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/capture'
-    | '/playlist'
-    | '/probe'
+    | '/settings'
     | '/api/capture'
     | '/api/gate'
     | '/api/hls'
@@ -145,8 +135,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/capture'
-    | '/playlist'
-    | '/probe'
+    | '/settings'
     | '/api/capture'
     | '/api/gate'
     | '/api/hls'
@@ -159,8 +148,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/capture'
-    | '/playlist'
-    | '/probe'
+    | '/settings'
     | '/api/capture'
     | '/api/gate'
     | '/api/hls'
@@ -174,8 +162,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CaptureRoute: typeof CaptureRoute
-  PlaylistRoute: typeof PlaylistRoute
-  ProbeRoute: typeof ProbeRoute
+  SettingsRoute: typeof SettingsRoute
   ApiCaptureRoute: typeof ApiCaptureRoute
   ApiGateRoute: typeof ApiGateRoute
   ApiHlsRoute: typeof ApiHlsRoute
@@ -202,18 +189,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CaptureRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/playlist': {
-      id: '/playlist'
-      path: '/playlist'
-      fullPath: '/playlist'
-      preLoaderRoute: typeof PlaylistRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/probe': {
-      id: '/probe'
-      path: '/probe'
-      fullPath: '/probe'
-      preLoaderRoute: typeof ProbeRouteImport
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/capture': {
@@ -278,8 +258,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CaptureRoute: CaptureRoute,
-  PlaylistRoute: PlaylistRoute,
-  ProbeRoute: ProbeRoute,
+  SettingsRoute: SettingsRoute,
   ApiCaptureRoute: ApiCaptureRoute,
   ApiGateRoute: ApiGateRoute,
   ApiHlsRoute: ApiHlsRoute,

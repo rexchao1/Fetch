@@ -75,10 +75,9 @@ run `npm run dev`.
 
 | Path | Holds |
 | --- | --- |
-| `src/routes/index.tsx` | Home: channel list, player, inspector. |
-| `src/routes/playlist.tsx` | M3U export — the URLs Jellyfin actually imports. |
-| `src/routes/probe.tsx` | Probe lab for testing a playlist URL before adding it as a channel. |
-| `src/routes/capture.tsx` | Capture deck: sniff a page, watch jobs, expire/recapture sessions. |
+| `src/routes/index.tsx` | Guide: channel list, player, inspector, and the "add a stream" dialog. |
+| `src/routes/settings.tsx` | Settings: M3U export for Jellyfin, session auto-refresh, restore demo channels. |
+| `src/routes/capture.tsx` | Capture: sniff a page, watch jobs, expire/recapture sessions. |
 | `src/routes/api/` | Server routes: `hls` (the proxy itself), `capture` (sniff drop box + list), `probe`, `inspect`, `session`, `token`, `logo`, `gate`. |
 | `src/lib/store.ts` | The channel/session client store (`useLatchStore`). |
 | `src/lib/session/` | Server-side session plane: in-memory sessions, capture jobs, `sniff.ts` commits a sniffed page. |
