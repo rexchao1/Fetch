@@ -30,9 +30,20 @@ fn wait_for_server(port: u16, timeout: Duration) -> bool {
 /// Spawn the bundled Nitro `node-server` build (`npm run build:desktop`,
 /// bundled into the app under `resources/output`). PGLite covers the
 /// database with nothing configured, so no env beyond host/port is needed.
+///
+/// A GUI-launched app (double-clicked, not run from a terminal) gets macOS's
+/// bare default `PATH`, which does not include a version-manager-installed
+/// `node` (mise, nvm, …) — only an interactive shell sources the profile that
+/// adds it. Running `node` through the user's login shell picks that up the
+/// same way a terminal would; passing the entry path as `$0` (rather than
+/// interpolating it into the command string) keeps a space in the path safe.
 fn spawn_server(resource_dir: PathBuf) -> std::io::Result<Child> {
     let entry = resource_dir.join("output").join("server").join("index.mjs");
-    Command::new("node")
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    Command::new(shell)
+        .arg("-l")
+        .arg("-c")
+        .arg("exec node \"$0\"")
         .arg(entry)
         .env("PORT", SERVER_PORT.to_string())
         .env("HOST", "127.0.0.1")
