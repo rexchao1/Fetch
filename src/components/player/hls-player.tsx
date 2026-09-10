@@ -1,9 +1,6 @@
-import { Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import type { Channel } from "@/lib/hls/catalog";
 import { channelProxyPath } from "@/lib/hls/catalog";
-import { cn } from "@/lib/utils";
 
 type Props = {
   channel: Channel;
@@ -11,10 +8,14 @@ type Props = {
   mirrorId?: string;
 };
 
+/**
+ * The video surface. Playback controls are the browser's own (play, volume,
+ * seek, fullscreen, picture-in-picture, and the live badge for live streams)
+ * so they behave the way every other player does. Autoplay starts muted;
+ * the viewer unmutes from the control bar.
+ */
 export function HlsPlayer({ channel, origin, mirrorId }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const src = `${origin}${channelProxyPath(channel, { mirrorId })}`;
@@ -27,9 +28,7 @@ export function HlsPlayer({ channel, origin, mirrorId }: Props) {
     let hls: { destroy: () => void } | undefined;
     setError(null);
     setReady(false);
-    setPlaying(false);
     video.muted = true;
-    setMuted(true);
 
     async function attach() {
       try {
@@ -38,13 +37,9 @@ export function HlsPlayer({ channel, origin, mirrorId }: Props) {
 
         const tryPlay = () => {
           if (cancelled || expired) return;
-          video.play()
-            .then(() => {
-              if (!cancelled) setPlaying(true);
-            })
-            .catch(() => {
-              /* autoplay can be blocked; overlay stays */
-            });
+          video.play().catch(() => {
+            /* autoplay can be blocked; the native controls take over */
+          });
         };
 
         if (Hls.isSupported()) {
@@ -83,10 +78,14 @@ export function HlsPlayer({ channel, origin, mirrorId }: Props) {
 
         if (video.canPlayType("application/vnd.apple.mpegurl")) {
           video.src = src;
-          video.addEventListener("loadedmetadata", () => {
-            setReady(true);
-            tryPlay();
-          }, { once: true });
+          video.addEventListener(
+            "loadedmetadata",
+            () => {
+              setReady(true);
+              tryPlay();
+            },
+            { once: true },
+          );
           return;
         }
 
@@ -107,91 +106,30 @@ export function HlsPlayer({ channel, origin, mirrorId }: Props) {
     };
   }, [src, expired, channel.live]);
 
-  async function togglePlay() {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      try {
-        await video.play();
-        setPlaying(true);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Playback blocked");
-      }
-    } else {
-      video.pause();
-      setPlaying(false);
-    }
-  }
-
-  function toggleMute() {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = !video.muted;
-    setMuted(video.muted);
-  }
-
   return (
     <section className="flex min-w-0 flex-col gap-3">
-      <div className="relative overflow-hidden rounded-xl bg-surface">
-        <div className="relative aspect-video bg-bg">
-          <video
-            ref={videoRef}
-            className="size-full object-contain"
-            playsInline
-            muted
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-          />
-          <div
-            className={cn(
-              "absolute inset-0 flex items-center justify-center bg-bg/40 transition-opacity duration-200",
-              playing ? "pointer-events-none opacity-0" : "opacity-100",
-            )}
-          >
-            <Button
-              type="button"
-              onClick={togglePlay}
-              className="size-14 rounded-full"
-              aria-label={playing ? "Pause" : "Play"}
-            >
-              {playing ? <Pause className="size-5" /> : <Play className="size-5 ml-0.5" />}
-            </Button>
+      <div className="relative aspect-video overflow-hidden rounded-xl bg-black">
+        <video
+          ref={videoRef}
+          className="size-full object-contain"
+          controls
+          playsInline
+          muted
+          controlsList="nodownload"
+        />
+        {expired ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-bg/80">
+            <p className="text-sm text-muted">Token expired</p>
           </div>
-          {expired ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-bg/80">
-              <p className="text-sm text-muted">Token expired</p>
-            </div>
-          ) : null}
-          {channel.live ? (
-            <span className="pointer-events-none absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-bg/80 px-2.5 py-1 text-xs font-medium tracking-wide text-live uppercase">
-              <span className="size-1.5 rounded-full bg-live" aria-hidden="true" />
-              Live
-            </span>
-          ) : null}
-          {!ready && !error && !expired ? (
-            <p className="pointer-events-none absolute bottom-3 left-4 text-xs text-muted">
-              Loading…
-            </p>
-          ) : null}
-        </div>
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <p className="min-w-0 truncate font-display text-lg tracking-tight italic">
-            {channel.name}
-          </p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={toggleMute}
-            aria-label={muted ? "Unmute" : "Mute"}
-          >
-            {muted ? <VolumeX /> : <Volume2 />}
-          </Button>
-        </div>
+        ) : null}
+        {!ready && !error && !expired ? (
+          <p className="pointer-events-none absolute top-3 left-4 text-xs text-muted">Loading…</p>
+        ) : null}
       </div>
-      {error ? (
-        <p className="rounded-lg bg-danger/15 px-3 py-2 text-sm text-danger">{error}</p>
-      ) : null}
+      <div className="flex items-center justify-between gap-3 px-1">
+        <p className="min-w-0 truncate font-display text-xl tracking-tight italic">{channel.name}</p>
+        {error ? <p className="shrink-0 text-xs text-danger">{error}</p> : null}
+      </div>
     </section>
   );
 }

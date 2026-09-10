@@ -26,7 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
       <header className="sticky top-0 z-40 bg-bg/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center justify-center gap-6 px-4 py-3 sm:px-6">
           <Link to="/" className="flex items-center gap-2.5">
             <span className="size-2 rounded-full bg-live" aria-hidden="true" />
             <span className="font-display text-xl tracking-tight italic">Latch</span>

@@ -3,12 +3,7 @@ import { useState } from "react";
 import { groupChannels, type Channel } from "@/lib/hls/catalog";
 import { ChannelMark } from "@/components/guide/channel-mark";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePlane } from "@/hooks/use-plane";
 import { cn } from "@/lib/utils";
 
@@ -31,66 +26,60 @@ export function ChannelList({
   const [pending, setPending] = useState<Channel | null>(null);
 
   return (
-    <aside className="flex min-h-0 min-w-0 flex-col rounded-xl bg-surface p-3 lg:max-h-full">
-      <div className="mb-1 flex items-center justify-between gap-2 pl-2">
+    <section className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-xs font-medium tracking-wide text-subtle uppercase">Channels</h2>
-        <Button variant="ghost" size="icon" onClick={onAdd} aria-label="Add a stream" className="size-9">
+        <Button variant="ghost" size="sm" onClick={onAdd}>
           <Plus />
+          Add
         </Button>
       </div>
-      <div className="flex gap-4 overflow-x-auto pb-1 lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0">
-        {groups.length === 0 ? (
-          <p className="px-2 py-6 text-sm text-subtle">No channels yet</p>
-        ) : null}
-        {groups.map((group) => (
-          <section key={group.name} className="shrink-0 lg:shrink">
-            <h3 className="mb-1 px-2 text-xs text-subtle">{group.name}</h3>
-            <ul className="flex gap-1 lg:flex-col">
-              {group.channels.map((channel) => {
-                const active = channel.id === selectedId;
-                const session = sessions.find((item) => item.channelId === channel.id);
-                const status = statusOf(channel, session?.healthStatus, session?.healthAt);
-                return (
-                  <li key={channel.id} className="group min-w-56 lg:min-w-0">
-                    <div
-                      className={cn(
-                        "flex items-center gap-1 rounded-lg pr-1 transition-colors duration-150",
-                        active ? "bg-surface-2" : "hover:bg-surface-2/60",
-                      )}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onSelect(channel.id)}
-                        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left"
-                      >
-                        <ChannelMark mark={channel.mark} active={active} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium text-fg">
-                            {channel.name}
-                          </span>
-                          {status ? (
-                            <span className={cn("block truncate text-xs", status.tone)}>
-                              {status.label}
-                            </span>
-                          ) : null}
+      {groups.length === 0 ? <p className="text-sm text-subtle">No channels yet</p> : null}
+      {groups.map((group) => (
+        <div key={group.name} className="flex flex-col gap-2">
+          <h3 className="text-xs text-subtle">{group.name}</h3>
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+            {group.channels.map((channel) => {
+              const active = channel.id === selectedId;
+              const session = sessions.find((item) => item.channelId === channel.id);
+              const status = statusOf(channel, session?.healthStatus, session?.healthAt);
+              return (
+                <li key={channel.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(channel.id)}
+                    aria-pressed={active}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-lg p-2.5 text-left transition-colors duration-150",
+                      active ? "bg-surface-2" : "bg-surface hover:bg-surface-2/60",
+                    )}
+                  >
+                    <ChannelMark mark={channel.mark} active={active} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-fg">
+                        {channel.name}
+                      </span>
+                      {status ? (
+                        <span className={cn("block truncate text-xs", status.tone)}>
+                          {status.label}
                         </span>
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Remove ${channel.name}`}
-                        onClick={() => setPending(channel)}
-                        className="flex size-9 shrink-0 items-center justify-center rounded-md text-subtle opacity-0 transition-opacity hover:text-fg focus-visible:opacity-100 group-hover:opacity-100"
-                      >
-                        <X className="size-4" />
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
-      </div>
+                      ) : null}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${channel.name}`}
+                    onClick={() => setPending(channel)}
+                    className="absolute top-1 right-1 flex size-7 items-center justify-center rounded-md text-subtle opacity-0 transition-opacity hover:bg-bg hover:text-fg focus-visible:opacity-100 group-hover:opacity-100"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
 
       <Dialog open={Boolean(pending)} onOpenChange={(open) => !open && setPending(null)}>
         <DialogContent>
@@ -114,7 +103,7 @@ export function ChannelList({
           </div>
         </DialogContent>
       </Dialog>
-    </aside>
+    </section>
   );
 }
 

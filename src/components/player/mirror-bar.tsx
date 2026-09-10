@@ -56,7 +56,7 @@ export function MirrorBar({
                 "flex flex-col gap-1 rounded-lg border px-3 py-2 text-left transition-colors duration-150",
                 active
                   ? "border-live/60 bg-live/10"
-                  : "border-border bg-surface hover:bg-surface-2 disabled:opacity-60",
+                  : "border-transparent bg-surface hover:bg-surface-2 disabled:opacity-60",
               )}
             >
               <div className="flex items-center justify-between gap-2">

@@ -40,7 +40,7 @@ export function CaptureDeck() {
     data?.jobs.find((job) => job.status === "running" || job.status === "queued") ?? data?.jobs[0];
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-4 sm:px-6">
       <SniffForm
         busy={act.isPending}
         onSubmit={(pageUrl, name) => act.mutate({ action: "sniff", pageUrl, name })}
