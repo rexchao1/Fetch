@@ -170,11 +170,11 @@ export default defineConfig(({ command, isPreview }) => ({
     ...(command === "build" || isPreview
       ? [
           nitro({
-            // "vercel" for the deployed build; the desktop app overrides this to
-            // "node-server" (via NITRO_PRESET) so `.output/server/index.mjs` is a
-            // plain Node server the Tauri shell can spawn as a child process —
-            // Vercel's preset outputs serverless functions, not a runnable server.
-            preset: process.env.NITRO_PRESET ?? "vercel",
+            // The only build target is the desktop app: "node-server" makes
+            // `.output/server/index.mjs` a plain Node server the Tauri shell
+            // spawns as a child process. A serverless preset would not be
+            // runnable by the app.
+            preset: "node-server",
             // Auto-registers server/middleware/* (the PWA install page +
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
             // false, so removing this silently unwires /?install=1 on deploys.

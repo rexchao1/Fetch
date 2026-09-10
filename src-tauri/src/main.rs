@@ -27,7 +27,7 @@ fn wait_for_server(port: u16, timeout: Duration) -> bool {
     false
 }
 
-/// Spawn the bundled Nitro `node-server` build (`npm run build:desktop`,
+/// Spawn the bundled Nitro `node-server` build (`npm run build`,
 /// bundled into the app under `resources/output`). PGLite covers the
 /// database with nothing configured, so no env beyond host/port is needed.
 ///

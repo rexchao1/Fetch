@@ -482,9 +482,10 @@ async function runCapture(job: CaptureJob): Promise<CaptureJob> {
 
 /**
  * The real capture plane: open the channel's page in Chromium and take the
- * playlist it loads. Needs Playwright on this machine (the homelab dev
- * server has it; Vercel does not). When it is missing, the previous session
- * is kept untouched and the job says which script to run instead.
+ * playlist it loads. Needs Playwright next to this server (the dev server
+ * has it when `npx playwright install chromium` has run). When it is
+ * missing, the previous session is kept untouched and the job says which
+ * script to run instead.
  */
 async function runSniffCapture(job: CaptureJob, recipe: Channel): Promise<CaptureJob> {
   job.status = "running";
