@@ -48,6 +48,29 @@ through `scripts/with-app-env.mjs`, so a dev server must be started with one
 of those scripts, never bare `vite dev` — `npm run check:auth` catches the
 case where it wasn't.
 
+## Desktop app
+
+Latch can run as a native window instead of a browser tab, so it's only
+using resources while you have it open — no server left running in the
+background:
+
+```
+npm run desktop:dev      # Tauri window over the live dev server
+npm run desktop:build    # packaged .app / installer under src-tauri/target
+```
+
+The window loads `npm run dev`'s server directly in dev. A packaged build
+instead bundles a standalone Node server (`npm run build:desktop`, Nitro's
+`node-server` preset — see `NITRO_PRESET` in `vite.config.ts`, distinct from
+the `vercel` preset the Vercel deploy uses) and `src-tauri/src/main.rs`
+spawns it on `127.0.0.1:47821` when the window opens, killing it when the
+window closes. No `DATABASE_URL` is set locally, so it runs on PGLite same
+as dev/preview — nothing to configure. The one thing this doesn't do:
+Jellyfin can only reach a channel's `/api/hls` URL while the desktop app is
+open, so it fits "open Latch, then watch," not walk-up-and-stream with the
+app closed. Requires Rust (`brew install rust`) to build; not needed just to
+run `npm run dev`.
+
 ## Layout
 
 | Path | Holds |
@@ -67,6 +90,7 @@ case where it wasn't.
 | `server/middleware/` | The deployed-app half of PWA chrome; `scripts/grok-pwa-plugin.mjs` is its dev/preview counterpart. |
 | `migrations/` | Schema, applied to Neon on deploy and to PGLite on preview startup. `migrations/auth/` is the Better Auth schema; do not edit it by hand. |
 | `scripts/` | Build tooling and its tests (`*.test.mjs`, run with `node --test`). |
+| `src-tauri/` | Desktop shell (Tauri + Rust) — see § Desktop app. |
 
 This app was scaffolded by the Grok app builder; `.grok/` is that platform's
 own instruction and skills bundle, not project documentation, and is not

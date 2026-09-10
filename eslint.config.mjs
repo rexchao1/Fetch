@@ -13,6 +13,7 @@ export default tseslint.config(
       ".output/**",
       ".vercel/**",
       ".nitro/**",
+      "src-tauri/target/**",
       "node_modules/**",
       "src/routeTree.gen.ts",
     ],

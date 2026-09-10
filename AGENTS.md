@@ -14,6 +14,7 @@ lives.
 | `npm test` | `scripts/**/*.test.mjs` plus the `src/lib` unit tests |
 | `npm run check:auth` | Fails if a live dev server and the next build disagree about `VITE_AUTH_ENABLED` |
 | `npm run sniff -- <page-url>` | Headless Chromium watches the page for an `.m3u8`, submits it to `/api/capture` |
+| `npm run desktop:dev` / `desktop:build` | Tauri desktop shell — see README § Desktop app |
 
 ## Rules
 
@@ -47,6 +48,12 @@ lives.
   It isn't version-controlled here — the platform regenerates it — so don't
   treat it as project documentation and don't hand-edit around it expecting
   the edit to persist.
+- `src-tauri/` is the desktop shell, built by `npm run desktop:build` against
+  `npm run build:desktop` (Nitro's `node-server` preset, picked by
+  `NITRO_PRESET` in `vite.config.ts`). It's a separate build target from the
+  Vercel deploy (`preset: "vercel"`) — don't collapse the two presets into
+  one, the Vercel serverless output isn't a runnable server the desktop app
+  could spawn.
 
 ## Git
 
