@@ -74,3 +74,4 @@ export declare function scoreMirror(m: {
   kind: string;
   ms?: number;
 }): number;
+export declare function isPlaylistCandidate(url: string, contentType: string | undefined): boolean;

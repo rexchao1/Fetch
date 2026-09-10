@@ -249,11 +249,7 @@ export async function sniffPage(opts) {
     const consider = async (request, response) => {
       const url = request.url();
       const contentType = response?.headers()?.["content-type"] ?? "";
-      // Path only: a page whose *query* names a playlist (player demos,
-      // `?src=…m3u8`) is not itself one. HTML never is.
-      const byUrl = PLAYLIST_URL.test(pathOf(url));
-      const byType = PLAYLIST_TYPE.test(contentType);
-      if ((!byUrl && !byType) || /text\/html/i.test(contentType)) return;
+      if (!isPlaylistCandidate(url, contentType)) return;
       if (seen.has(url)) return;
       seen.add(url);
 
@@ -746,6 +742,20 @@ function pathOf(value) {
   } catch {
     return String(value).split(/[?#]/)[0] ?? "";
   }
+}
+
+// Path only: a page whose *query* names a playlist (player demos,
+// `?src=…m3u8`) is not itself one — that one only survives on content type,
+// and HTML never is a real one. But a URL whose *path* ends in `.m3u8` is
+// trusted on its own, token/query string and all: some origins serve the
+// real playlist mislabeled as `text/html` (deliberately, to defeat naive
+// scrapers), and `classifyPlaylist` on the body still rejects it downstream
+// if it turns out to actually be an HTML page.
+export function isPlaylistCandidate(url, contentType) {
+  const byUrl = PLAYLIST_URL.test(pathOf(url));
+  const byType = PLAYLIST_TYPE.test(contentType ?? "");
+  if (byUrl) return true;
+  return byType && !/text\/html/i.test(contentType ?? "");
 }
 
 function lowerKeys(headers) {

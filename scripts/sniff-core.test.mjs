@@ -4,6 +4,7 @@ import {
   classifyPlaylist,
   cookieHeader,
   expiryFromUrl,
+  isPlaylistCandidate,
   mergeCookies,
   parseMasterInfo,
   pickPlaylist,
@@ -99,6 +100,21 @@ test("scoreMirror ranks reachable HD above SD, and dead mirrors last", () => {
   assert.ok(scoreMirror(slow) > scoreMirror(unknown), "confirmed beats unconfirmed");
   assert.ok(scoreMirror(unknown) > scoreMirror(dead), "unconfirmed beats a 403");
   assert.ok(scoreMirror(dead) < 0, "a dead mirror scores negative");
+});
+
+test("isPlaylistCandidate trusts a .m3u8 URL even mislabeled as text/html, token and all", () => {
+  const buried = "https://cdn.example/hls/sdfjsdkf.m3u8?_t=sfdsfd";
+  assert.equal(isPlaylistCandidate(buried, "text/html; charset=utf-8"), true);
+  assert.equal(isPlaylistCandidate(buried, undefined), true);
+  assert.equal(isPlaylistCandidate("https://cdn.example/segment.ts", "text/html"), false);
+  // A page whose query merely *names* a playlist (player demo pages) isn't
+  // one itself — content type has to actually say so, and HTML never does.
+  assert.equal(isPlaylistCandidate("https://example.com/watch?src=a.m3u8", "text/html"), false);
+  assert.equal(
+    isPlaylistCandidate("https://cdn.example/live/index.m3u8", "application/vnd.apple.mpegurl"),
+    true,
+  );
+  assert.equal(isPlaylistCandidate("https://cdn.example/live/chunk.ts", "video/mp2t"), false);
 });
 
 test("cookie helpers build and merge a Cookie header without duplicates", () => {
