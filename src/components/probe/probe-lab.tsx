@@ -9,13 +9,14 @@ import { ingestPlaylist } from "@/lib/hls/ingest";
 export function ProbeLab(_props: { origin: string }) {
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
+  const [page, setPage] = useState("");
   const [running, setRunning] = useState(false);
 
   async function addToGuide(event: FormEvent) {
     event.preventDefault();
     setRunning(true);
     try {
-      await ingestPlaylist(url);
+      await ingestPlaylist(url, page);
       toast.success("Added to Guide");
       await navigate({ to: "/" });
     } catch (error) {
@@ -52,6 +53,22 @@ export function ProbeLab(_props: { origin: string }) {
             inputMode="url"
             required
           />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="probe-page">Page it plays on (optional)</Label>
+          <Input
+            id="probe-page"
+            value={page}
+            onChange={(e) => setPage(e.target.value)}
+            placeholder="https://…/watch/…"
+            autoComplete="off"
+            spellCheck={false}
+            inputMode="url"
+          />
+          <p className="text-xs leading-relaxed text-muted">
+            If the stream 403s on its own, give the page it embeds on. Latch tries that as the
+            referer, which is what most hotlink gates check.
+          </p>
         </div>
         <Button type="submit" disabled={running || !url.trim()}>
           {running ? "Adding…" : "Add to Guide"}
