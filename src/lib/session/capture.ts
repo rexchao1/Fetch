@@ -494,6 +494,11 @@ async function runSniffCapture(job: CaptureJob, recipe: Channel): Promise<Captur
     job.error = "Playwright is not installed on this server";
     job.finishedAt = Date.now();
     pushEvent(job, "error", `${job.error} · run: node scripts/sniff-m3u8.mjs ${pageUrl}`);
+    // The stub channel's seeded session has an empty playlistUrl, which the
+    // watchdog's `startsWith("http")` filter skips forever — without this it
+    // never gets a health status and the Guide shows it as "Live" and
+    // "waiting on watchdog" permanently instead of ever going down.
+    touchHealth(job.channelId, 0);
     return job;
   }
   try {
@@ -528,6 +533,9 @@ async function runSniffCapture(job: CaptureJob, recipe: Channel): Promise<Captur
     job.error = error instanceof Error ? error.message : "sniff failed";
     job.finishedAt = Date.now();
     pushEvent(job, "error", job.error);
+    // Same reasoning as the Playwright-unavailable branch above: without a
+    // health status, the empty-playlist stub session never surfaces as down.
+    touchHealth(job.channelId, 0);
     return job;
   }
 }

@@ -136,7 +136,9 @@ export function ChannelList({
                               : channel.live
                                 ? session?.healthStatus
                                   ? `on air · ${session.healthStatus}`
-                                  : "waiting on watchdog"
+                                  : session?.healthAt
+                                    ? "unreachable — check Capture deck"
+                                    : "waiting on watchdog"
                                 : headerRecipe(channel.userAgent, channel.referer)}
                           </span>
                         </span>
