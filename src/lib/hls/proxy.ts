@@ -492,14 +492,22 @@ async function proxyFetch(url: string, opts: ProxyOpts) {
   const headers = sessionHeaders(opts.headers);
   if (opts.range) headers.set("range", opts.range);
 
+  // The timeout covers reaching the origin and reading a playlist, not
+  // streaming a segment: a 15 MB segment from a slow origin takes longer than
+  // that, and aborting mid-body sends the player a truncated segment (the
+  // browser logs ERR_CONTENT_LENGTH_MISMATCH) that hls.js retries forever,
+  // so the picture stays black with no fatal error to show.
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), FETCH_TIMEOUT_MS);
   let upstream: Response;
   try {
     upstream = await fetch(url, {
       headers,
       redirect: "follow",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      signal: abort.signal,
     });
   } catch (error) {
+    clearTimeout(timer);
     return textResponse(error instanceof Error ? error.message : "Upstream failed", 502);
   }
 
@@ -510,7 +518,14 @@ async function proxyFetch(url: string, opts: ProxyOpts) {
     /\.m3u8?(\?|$)/i.test(url);
 
   if (maybePlaylist) {
-    const text = await upstream.text();
+    let text: string;
+    try {
+      text = await upstream.text();
+    } catch (error) {
+      return textResponse(error instanceof Error ? error.message : "Upstream failed", 502);
+    } finally {
+      clearTimeout(timer);
+    }
     if (isPlaylistBody(text)) {
       const rewritten = rewriteM3U8(text, upstream.url || url, opts.toProxy);
       return new Response(rewritten.text, {
@@ -531,6 +546,7 @@ async function proxyFetch(url: string, opts: ProxyOpts) {
     });
   }
 
+  clearTimeout(timer);
   const outHeaders = new Headers(CORS_HEADERS);
   for (const [key, value] of upstream.headers.entries()) {
     if (PASS_HEADERS.has(key.toLowerCase())) outHeaders.set(key, value);
