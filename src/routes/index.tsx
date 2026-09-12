@@ -9,7 +9,7 @@ import { MirrorBar } from "@/components/player/mirror-bar";
 import { useOrigin } from "@/hooks/use-origin";
 import { usePlane } from "@/hooks/use-plane";
 import { useServerChannels } from "@/hooks/use-server-channels";
-import { useChannelList, useLatchStore, useSelectedChannel } from "@/lib/store";
+import { useChannelList, useFetchStore, useSelectedChannel } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -19,8 +19,8 @@ function Home() {
   useServerChannels();
   const channels = useChannelList();
   const selected = useSelectedChannel();
-  const select = useLatchStore((s) => s.select);
-  const removeChannel = useLatchStore((s) => s.removeChannel);
+  const select = useFetchStore((s) => s.select);
+  const removeChannel = useFetchStore((s) => s.removeChannel);
   const [adding, setAdding] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
 

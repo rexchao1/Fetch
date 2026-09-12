@@ -3,7 +3,7 @@
  * Deploy-time database migrator (node-postgres, `pg`).
  *
  * `npm run db:migrate` applies pending files in ../migrations to DATABASE_URL,
- * for anyone running Latch against a real Postgres. Each file is applied in one transaction and
+ * for anyone running Fetch against a real Postgres. Each file is applied in one transaction and
  * recorded in a `_migrations` table, so it runs once and is safe to re-run.
  *
  * The read is non-recursive, so the opt-in auth schema under migrations/auth/

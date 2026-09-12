@@ -238,7 +238,7 @@ export function enqueueCapture(channelId: string, reason: string): CaptureJob {
   const job: CaptureJob = {
     id: `cap-${Math.random().toString(36).slice(2, 8)}`,
     channelId,
-    pageUrl: session?.pageUrl ?? recipe?.pageUrl ?? `https://latch.tv/watch/${channelId}`,
+    pageUrl: session?.pageUrl ?? recipe?.pageUrl ?? `https://fetch.tv/watch/${channelId}`,
     reason,
     status: "queued",
     startedAt: Date.now(),
@@ -354,7 +354,7 @@ export function expireSession(channelId: string) {
   if (recipe?.kind === "token") {
     const url = session.playlistUrl.startsWith("http")
       ? new URL(session.playlistUrl)
-      : new URL(session.playlistUrl, "http://latch.local");
+      : new URL(session.playlistUrl, "http://fetch.local");
     url.searchParams.set("exp", String(Date.now() - 1000));
     const playlistUrl = session.playlistUrl.startsWith("http")
       ? url.href
@@ -429,7 +429,7 @@ async function runCapture(job: CaptureJob): Promise<CaptureJob> {
     await tick(job, 130, "request", `GET ${shortUrl(applied.url)}`);
     await tick(job, 70, "response", "200 application/vnd.apple.mpegurl");
 
-    const cookie = `latch_sid=${job.channelId}.${Date.now().toString(36)}`;
+    const cookie = `fetch_sid=${job.channelId}.${Date.now().toString(36)}`;
     await tick(
       job,
       60,
@@ -561,7 +561,7 @@ function sleep(ms: number) {
 
 function shortUrl(value: string) {
   try {
-    const url = value.startsWith("http") ? new URL(value) : new URL(value, "http://latch.local");
+    const url = value.startsWith("http") ? new URL(value) : new URL(value, "http://fetch.local");
     const tail = `${url.pathname}${url.search}`;
     return tail.length > 64 ? `${tail.slice(0, 61)}…` : tail;
   } catch {

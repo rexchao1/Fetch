@@ -2,9 +2,9 @@ export const CHROME_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
 export const VLC_UA = "VLC/3.0.21 LibVLC/3.0.21";
 export const JELLYFIN_UA = "Mozilla/5.0 (Linux) Jellyfin-FFmpeg";
-export const LATCH_UA = "LatchProxy/1.0";
+export const FETCH_UA = "FetchProxy/1.0";
 
-export const GATED_REFERER = "https://latch.tv/";
+export const GATED_REFERER = "https://fetch.tv/";
 export const TOKEN_TTL_MS = 15 * 60 * 1000;
 
 export const BBB_PLAYLIST = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
@@ -51,7 +51,7 @@ export const BUILTIN_CHANNELS: Channel[] = [
     mark: "Lv",
     url: CASTR_LIVE,
     failoverUrl: UNIFIED_LIVE,
-    pageUrl: "https://latch.tv/watch/castr-live",
+    pageUrl: "https://fetch.tv/watch/castr-live",
     userAgent: CHROME_UA,
     referer: "https://castr.com/",
     kind: "open",
@@ -66,7 +66,7 @@ export const BUILTIN_CHANNELS: Channel[] = [
     mark: "Un",
     url: UNIFIED_LIVE,
     failoverUrl: CASTR_LIVE,
-    pageUrl: "https://latch.tv/watch/unified-live",
+    pageUrl: "https://fetch.tv/watch/unified-live",
     userAgent: CHROME_UA,
     referer: "https://demo.unified-streaming.com/",
     kind: "open",
@@ -80,7 +80,7 @@ export const BUILTIN_CHANNELS: Channel[] = [
     group: "Cinema",
     mark: "Bb",
     url: BBB_PLAYLIST,
-    pageUrl: "https://latch.tv/watch/bbb",
+    pageUrl: "https://fetch.tv/watch/bbb",
     userAgent: CHROME_UA,
     referer: "https://test-streams.mux.dev/",
     kind: "open",
@@ -93,7 +93,7 @@ export const BUILTIN_CHANNELS: Channel[] = [
     group: "Cinema",
     mark: "Bp",
     url: BIPBOP_PLAYLIST,
-    pageUrl: "https://latch.tv/watch/bipbop",
+    pageUrl: "https://fetch.tv/watch/bipbop",
     userAgent: CHROME_UA,
     referer: "https://developer.apple.com/",
     kind: "open",
@@ -106,7 +106,7 @@ export const BUILTIN_CHANNELS: Channel[] = [
     group: "Lab",
     mark: "Hl",
     url: "/api/gate",
-    pageUrl: "https://latch.tv/watch/header-lock",
+    pageUrl: "https://fetch.tv/watch/header-lock",
     userAgent: CHROME_UA,
     referer: GATED_REFERER,
     kind: "gated",
@@ -119,7 +119,7 @@ export const BUILTIN_CHANNELS: Channel[] = [
     group: "Lab",
     mark: "Nt",
     url: "/api/token",
-    pageUrl: "https://latch.tv/watch/night-token",
+    pageUrl: "https://fetch.tv/watch/night-token",
     userAgent: CHROME_UA,
     referer: GATED_REFERER,
     kind: "token",
@@ -143,8 +143,8 @@ export function headerRecipe(userAgent: string, referer: string) {
       ? "Jellyfin"
       : /VLC/i.test(userAgent)
         ? "VLC"
-        : /LatchProxy/i.test(userAgent)
-          ? "Latch"
+        : /FetchProxy/i.test(userAgent)
+          ? "Fetch"
           : userAgent
             ? "Chrome"
             : "no UA";

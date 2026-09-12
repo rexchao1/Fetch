@@ -1,6 +1,6 @@
-# Latch
+# Fetch
 
-Read `README.md` first: what Latch does, how to run it, and where each part
+Read `README.md` first: what Fetch does, how to run it, and where each part
 lives.
 
 ## Commands
@@ -15,7 +15,7 @@ lives.
 | `npm run check:auth` | Fails if a live dev server and the next build disagree about `VITE_AUTH_ENABLED` |
 | `npm run sniff -- <page-url>` | Headless Chromium watches the page for an `.m3u8`, submits it to `/api/capture` |
 | `npm run desktop:dev` | Tauri window over the live `npm run dev` server |
-| `npm run desktop:build` | `npm run build`, then packages `Latch.app` and a `.dmg` under `src-tauri/target/release/bundle` — the only way a change reaches the packaged app |
+| `npm run desktop:build` | `npm run build`, then packages `Fetch.app` and a `.dmg` under `src-tauri/target/release/bundle` — the only way a change reaches the packaged app |
 
 ## Rules
 
@@ -76,15 +76,15 @@ out, but check what you `git add` before committing anyway.
 
 ## Desktop app
 
-The user runs Latch as the packaged app at
-`src-tauri/target/release/bundle/macos/Latch.app`, not in a browser. That
+The user runs Fetch as the packaged app at
+`src-tauri/target/release/bundle/macos/Fetch.app`, not in a browser. That
 app copies the built server into itself at build time, so no code change is
 visible there until the app is rebuilt and relaunched.
 
 - After any change the user should see in the app, run
-  `npm run desktop:build` (needs Rust), then tell them to quit Latch and open
+  `npm run desktop:build` (needs Rust), then tell them to quit Fetch and open
   it again. Screenshots from a dev server prove the code, not the app.
-- To tell whether the packaged app is open, look for a `node …/Latch.app/…/
+- To tell whether the packaged app is open, look for a `node …/Fetch.app/…/
   output/server/index.mjs` process. It keeps serving the old build until the
   window is closed.
 - `npm run desktop:dev` is the alternative: a Tauri window over the live dev

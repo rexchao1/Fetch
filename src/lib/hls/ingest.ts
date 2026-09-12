@@ -1,7 +1,7 @@
 import { CHROME_UA, PROBE_USER_AGENTS } from "./catalog";
 import { buildRefererCandidates } from "./referer";
 import { tokenFromPlaylistUrl } from "./token";
-import { useLatchStore } from "@/lib/store";
+import { useFetchStore } from "@/lib/store";
 import type { ProbeCell } from "./types";
 
 export { buildRefererCandidates, type RefererCandidate } from "./referer";
@@ -44,7 +44,7 @@ export async function ingestPlaylist(raw: string, pageUrl?: string) {
   // A gate that keyed on the page referer should re-sniff against that page,
   // not the playlist, if the token later rotates.
   const channelPage = page || target;
-  const state = useLatchStore.getState();
+  const state = useFetchStore.getState();
   const existing = state.custom.find((channel) => channel.url === target);
   const name = parsed.hostname.replace(/^www\./, "") || "Stream";
 

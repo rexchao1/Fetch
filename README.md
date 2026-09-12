@@ -1,9 +1,9 @@
-# Latch
+# Fetch
 
-A homelab HLS bridge for Jellyfin. You give Latch a live `.m3u8` playlist;
+A homelab HLS bridge for Jellyfin. You give Fetch a live `.m3u8` playlist;
 it keeps a `StreamSession` warm behind a stable proxy URL — header
 injection, playlist rewrite, failover to a backup playlist after two failed
-health checks, M3U export — so Jellyfin only ever talks to Latch and never
+health checks, M3U export — so Jellyfin only ever talks to Fetch and never
 scrapes the origin directly.
 
 ## Run it
@@ -19,7 +19,7 @@ npm test
 
 ## Sniff a playlist off a page
 
-You have a page that plays video but no `.m3u8` URL. Latch can watch the
+You have a page that plays video but no `.m3u8` URL. Fetch can watch the
 page's network tab and take the playlist it loads, token and all:
 
 ```
@@ -51,7 +51,7 @@ case where it wasn't.
 
 ## Desktop app
 
-Latch runs as a native window, so it's only using resources while you have
+Fetch runs as a native window, so it's only using resources while you have
 it open — no server left running in the background. This is the only build
 target; there is no web deploy.
 
@@ -66,10 +66,10 @@ instead bundles a standalone Node server (`npm run build`, Nitro's
 `127.0.0.1:47821` when the window opens, killing it when the window closes.
 Because the server is copied into the app at build time, the packaged app
 does not pick up code changes until you run `npm run desktop:build` again
-and then quit and reopen Latch. No `DATABASE_URL` is set locally, so it runs
+and then quit and reopen Fetch. No `DATABASE_URL` is set locally, so it runs
 on PGLite same as dev/preview — nothing to configure. The one thing this
 doesn't do: Jellyfin can only reach a channel's `/api/hls` URL while the
-desktop app is open, so it fits "open Latch, then watch," not
+desktop app is open, so it fits "open Fetch, then watch," not
 walk-up-and-stream with the app closed. Requires Rust (`brew install rust`)
 to build; not needed just to run `npm run dev`.
 
@@ -81,9 +81,9 @@ to build; not needed just to run `npm run dev`.
 | `src/routes/settings.tsx` | Settings: M3U export for Jellyfin, session auto-refresh, restore demo channels. |
 | `src/routes/capture.tsx` | Capture: sniff a page, watch jobs, expire/recapture sessions. |
 | `src/routes/api/` | Server routes: `hls` (the proxy itself), `capture` (sniff drop box + list), `probe`, `inspect`, `session`, `token`, `logo`, `gate`. |
-| `src/lib/store.ts` | The channel/session client store (`useLatchStore`). |
+| `src/lib/store.ts` | The channel/session client store (`useFetchStore`). |
 | `src/lib/session/` | Server-side session plane: in-memory sessions, capture jobs, `sniff.ts` commits a sniffed page. |
-| `src/lib/hls/` | Playlist ingest and rewrite, the `LatchProxy` user agent. |
+| `src/lib/hls/` | Playlist ingest and rewrite, the `FetchProxy` user agent. |
 | `scripts/sniff-core.mjs` | The Playwright network watcher, shared by `scripts/sniff-m3u8.mjs` (CLI) and the server. |
 | `src/lib/auth/` | Better Auth wiring — own email/password plus the shared Grok auth broker for Google/X. Off by default (`VITE_AUTH_ENABLED`). |
 | `src/lib/app-data/` | Server-only connector/AppData client. Never imported from client code. |

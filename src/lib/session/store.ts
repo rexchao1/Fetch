@@ -184,7 +184,7 @@ export function seedFromChannel(channel: Channel, reason: string): Omit<StreamSe
     headers: {
       userAgent: channel.userAgent || CHROME_UA,
       referer: channel.referer || (channel.kind === "open" ? "" : GATED_REFERER),
-      cookie: joinCookie(`latch_sid=${channel.id}.seed`, applied.cookie),
+      cookie: joinCookie(`fetch_sid=${channel.id}.seed`, applied.cookie),
       origin: originFromReferer(channel.referer),
       authorization: applied.authorization,
     },
@@ -250,14 +250,14 @@ export function mintPlaylistUrl(channel: Channel) {
   if (channel.kind !== "token") return channel.url;
   const relative = channel.url.startsWith("/") || channel.url.startsWith("http");
   if (!relative) return channel.url;
-  const url = new URL(channel.url, "http://latch.local");
+  const url = new URL(channel.url, "http://fetch.local");
   url.searchParams.set("exp", String(Date.now() + (channel.tokenTtlMs ?? TOKEN_TTL_MS)));
   if (channel.url.startsWith("http")) return url.href;
   return `${url.pathname}${url.search}`;
 }
 
 export function watchPage(channelId: string) {
-  return `https://latch.tv/watch/${channelId}`;
+  return `https://fetch.tv/watch/${channelId}`;
 }
 
 function originFromReferer(referer: string) {

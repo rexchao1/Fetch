@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Open a page in headless Chromium, watch its network tab for an `.m3u8`
- * playlist (signed or not), and hand it to a running Latch server so the
+ * playlist (signed or not), and hand it to a running Fetch server so the
  * channel shows up on the Guide with the headers the page actually used.
  *
  *   node scripts/sniff-m3u8.mjs https://example.com/watch/123
@@ -17,7 +17,7 @@ import { shortUrl, sniffPage } from "./sniff-core.mjs";
 export function parseSniffArgs(argv, env = {}) {
   const out = {
     pageUrl: "",
-    server: env.LATCH_SERVER || "http://localhost:8080",
+    server: env.FETCH_SERVER || "http://localhost:8080",
     name: "",
     timeoutMs: 30_000,
     headed: false,
@@ -154,7 +154,7 @@ async function main() {
     });
   } catch (error) {
     console.error(`could not reach ${args.server}: ${error instanceof Error ? error.message : error}`);
-    console.error("Start Latch with `npm run dev`, or pass --server.");
+    console.error("Start Fetch with `npm run dev`, or pass --server.");
     process.exit(1);
   }
   const body = await response.json().catch(() => ({}));

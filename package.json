@@ -1,5 +1,5 @@
 {
-  "name": "latch",
+  "name": "fetch",
   "private": true,
   "sideEffects": false,
   "type": "module",

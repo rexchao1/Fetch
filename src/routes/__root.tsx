@@ -5,7 +5,7 @@ import { AppProviders } from "@/components/providers";
 import { AppShell } from "@/components/layout/app-shell";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Latch";
+const APP_NAME = "Fetch";
 
 export const Route = createRootRoute({
   head: () => ({

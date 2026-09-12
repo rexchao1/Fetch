@@ -6,9 +6,9 @@ import {
   type Channel,
 } from "@/lib/hls/catalog";
 
-const STORAGE_KEY = "latch.v1";
+const STORAGE_KEY = "fetch.v1";
 
-type LatchState = {
+type FetchState = {
   custom: Channel[];
   hidden: string[];
   selectedId: string;
@@ -71,7 +71,7 @@ export function allChannels(custom: Channel[], hidden: string[] = []) {
   return [...builtins, ...extras].filter((channel) => !hidden.includes(channel.id));
 }
 
-export const useLatchStore = create<LatchState>((set, get) => ({
+export const useFetchStore = create<FetchState>((set, get) => ({
   custom: [],
   hidden: [],
   selectedId: "castr-live",
@@ -252,15 +252,15 @@ function upsertExpiry(custom: Channel[], id: string, tokenExpiresAt: number, tok
 }
 
 export function useSelectedChannel() {
-  const custom = useLatchStore((s) => s.custom);
-  const hidden = useLatchStore((s) => s.hidden);
-  const selectedId = useLatchStore((s) => s.selectedId);
+  const custom = useFetchStore((s) => s.custom);
+  const hidden = useFetchStore((s) => s.hidden);
+  const selectedId = useFetchStore((s) => s.selectedId);
   const list = useMemo(() => allChannels(custom, hidden), [custom, hidden]);
   return list.find((c) => c.id === selectedId) ?? list[0];
 }
 
 export function useChannelList() {
-  const custom = useLatchStore((s) => s.custom);
-  const hidden = useLatchStore((s) => s.hidden);
+  const custom = useFetchStore((s) => s.custom);
+  const hidden = useFetchStore((s) => s.hidden);
   return useMemo(() => allChannels(custom, hidden), [custom, hidden]);
 }

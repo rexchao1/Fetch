@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { Channel } from "@/lib/hls/catalog";
-import { useLatchStore } from "@/lib/store";
+import { useFetchStore } from "@/lib/store";
 
 /**
  * Keep the lineup in step with what the capture plane has registered: a page
@@ -9,8 +9,8 @@ import { useLatchStore } from "@/lib/store";
  * re-sniff that rotated the playlist URL updates the local copy.
  */
 export function useServerChannels(interval = 3000) {
-  const hydrated = useLatchStore((s) => s.hydrated);
-  const adopt = useLatchStore((s) => s.adoptServerChannels);
+  const hydrated = useFetchStore((s) => s.hydrated);
+  const adopt = useFetchStore((s) => s.adoptServerChannels);
   const query = useQuery({
     queryKey: ["captured-channels"],
     queryFn: async () => {

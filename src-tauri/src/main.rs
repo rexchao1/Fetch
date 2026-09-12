@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 
-/// Latch's own dev server already owns 8080 (vite.config.ts's fixed
+/// Fetch's own dev server already owns 8080 (vite.config.ts's fixed)
 /// live-preview contract). This just needs a port nothing else on the user's
 /// machine is likely to be holding.
 const SERVER_PORT: u16 = 47821;
@@ -64,9 +64,9 @@ fn main() {
             } else {
                 let resource_dir = app.path().resource_dir()?;
                 let child = spawn_server(resource_dir)
-                    .expect("failed to start the bundled Latch server");
+                    .expect("failed to start the bundled Fetch server");
                 if !wait_for_server(SERVER_PORT, Duration::from_secs(15)) {
-                    panic!("Latch server did not come up on port {SERVER_PORT}");
+                    panic!("Fetch server did not come up on port {SERVER_PORT}");
                 }
                 app.state::<ServerProcess>()
                     .0
@@ -77,7 +77,7 @@ fn main() {
             };
 
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse().unwrap()))
-                .title("Latch")
+                .title("Fetch")
                 .inner_size(1280.0, 860.0)
                 .build()?;
 

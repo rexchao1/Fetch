@@ -9,14 +9,14 @@ import { usePlane } from "@/hooks/use-plane";
 import { buildM3U } from "@/lib/hls/m3u";
 import type { Channel } from "@/lib/hls/catalog";
 import type { PlaneSnapshot } from "@/lib/session/types";
-import { useLatchStore } from "@/lib/store";
+import { useFetchStore } from "@/lib/store";
 
 export function SettingsPage({ channels, origin }: { channels: Channel[]; origin: string }) {
   const [viaProxy, setViaProxy] = useState(true);
   const [includeLogos, setIncludeLogos] = useState(true);
   const [copied, setCopied] = useState(false);
-  const hidden = useLatchStore((s) => s.hidden);
-  const restoreHidden = useLatchStore((s) => s.restoreHidden);
+  const hidden = useFetchStore((s) => s.hidden);
+  const restoreHidden = useFetchStore((s) => s.restoreHidden);
 
   const client = useQueryClient();
   const plane = usePlane(5000);
@@ -52,7 +52,7 @@ export function SettingsPage({ channels, origin }: { channels: Channel[]; origin
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "latch.m3u";
+    a.download = "fetch.m3u";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -70,7 +70,7 @@ export function SettingsPage({ channels, origin }: { channels: Channel[]; origin
             Download
           </Button>
         </div>
-        <ToggleRow id="via-proxy" label="Route through Latch" checked={viaProxy} onChange={setViaProxy} />
+        <ToggleRow id="via-proxy" label="Route through Fetch" checked={viaProxy} onChange={setViaProxy} />
         <ToggleRow id="logos" label="Channel logos" checked={includeLogos} onChange={setIncludeLogos} />
         <pre className="max-h-72 overflow-auto rounded-md bg-bg p-3 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-subtle">
           {text}

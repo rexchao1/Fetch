@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Channel } from "@/lib/hls/catalog";
 import { channelProxyPath } from "@/lib/hls/catalog";
 import { classifyToken, maskToken, tokenKindLabel } from "@/lib/hls/token";
-import { useLatchStore } from "@/lib/store";
+import { useFetchStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 type InspectPayload = {
@@ -40,8 +40,8 @@ type InspectPayload = {
 };
 
 export function Inspector({ channel, origin }: { channel: Channel; origin: string }) {
-  const refreshToken = useLatchStore((s) => s.refreshToken);
-  const expireToken = useLatchStore((s) => s.expireToken);
+  const refreshToken = useFetchStore((s) => s.refreshToken);
+  const expireToken = useFetchStore((s) => s.expireToken);
   const proxyUrl = `${origin}${channelProxyPath(channel)}`;
   const inspectUrl = channel.builtin
     ? `/api/inspect?ch=${encodeURIComponent(channel.id)}`
@@ -193,7 +193,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 function TokenEditor({ channel, onSaved }: { channel: Channel; onSaved: () => void }) {
-  const setToken = useLatchStore((s) => s.setToken);
+  const setToken = useFetchStore((s) => s.setToken);
   const [value, setValue] = useState(channel.token ?? "");
 
   useEffect(() => {

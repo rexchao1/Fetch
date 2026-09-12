@@ -31,7 +31,7 @@ export function gateAllows(request: Request) {
   if (!ua || /jellyfin/i.test(ua) || ua === JELLYFIN_UA) {
     return { ok: false as const, reason: "user-agent rejected" };
   }
-  if (!/mozilla|vlc|latchproxy/i.test(ua)) {
+  if (!/mozilla|vlc|fetchproxy/i.test(ua)) {
     return { ok: false as const, reason: "user-agent rejected" };
   }
   if (!referer.startsWith(GATED_REFERER)) {
