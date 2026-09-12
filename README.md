@@ -29,22 +29,3 @@ Sniff is how Fetch finds the .m3u8. You give Fetch the website, it finds the pla
 
 
 Fetch is built to be in the background. Close the window and the path is gone. That is the point. Nothing sits eating your CPU.
-
-## From source
-
-```
-npm ci
-npm run desktop:dev     # a window over the live server
-npm run desktop:build   # Fetch.app
-```
-
-`npm run dev` is the same server in a browser at http://localhost:8080. Node 20. Building the app needs Rust once. `brew install rust`.
-
-To sniff from a terminal, install Chromium once, then pass a page:
-
-```
-npx playwright install chromium
-npm run sniff -- https://example.com/watch/123
-```
-
-`--dry-run` prints what it found and submits nothing. `--headed` shows the browser.
