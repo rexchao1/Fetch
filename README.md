@@ -3,9 +3,12 @@
 I built Fetch because I got tired of using my browser for streaming and having ads pop up left and right. Fetch is a macOS desktop app that simplifies this. It contains a beautiful UI with an easy video player. Just take a link off of the internet that has some kind of video content, and Fetch will go grab that video and stream it for you. Say goodbye to those ads!!!
 
 Download it here (I promise it's safe):
+
 [Fetch.dmg](https://github.com/rexchao1/Fetch/releases/latest/download/Fetch_0.1.0_aarch64.dmg)
 
 First time, right-click Fetch, click Open, then Open again.
+
+! [image](assets/UISample.png)
 
 ## Here's some things I learned while making it:
 
