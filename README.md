@@ -1,22 +1,32 @@
 # Fetch
 
-I built Fetch because Jellyfin would not play streams that work fine in a browser.
+I built Fetch because I got tired of using my browser for streaming and having ads pop up left and right. Fetch is a macOS desktop app that simplifies this. It contains a beautiful UI with an easy video player. Just take a link off of the internet that has some kind of video content, and Fetch will go grab that video and stream it for you. Say goodbye to those ads!!!
 
-It is a Mac app. [Download the disk image](https://github.com/rexchao1/Fetch/releases/latest/download/Fetch_0.1.0_aarch64.dmg) for Apple Silicon, open it, and drag Fetch into Applications. macOS will warn that it is unsigned. Right-click the app, click Open, then Open again.
+Download it here (I promise it's safe):
+[Fetch.dmg](https://github.com/rexchao1/Fetch/releases/latest/download/Fetch_0.1.0_aarch64.dmg)
 
-Jellyfin is a media server you run yourself. Movies, shows, live channels, all on a machine you own. For live TV it wants an M3U file, a list of channel names and URLs. Each URL is usually an HLS playlist. HLS is Apple's way of chopping video into tiny files and handing the player a text list of what to fetch next. That list is a `.m3u8`. A master playlist points at a few quality versions. A media playlist points at the actual chunks. On a live feed those chunk names keep changing.
+## Here's some things I learned while making it:
 
-The fight is authorization. A lot of sites will only serve the video if the request looks like it came from their own player. They check the User-Agent and reject Jellyfin's ffmpeg. They check the Referer so a random server cannot hotlink. They set a cookie after the page loads. They sign the playlist URL with a token that dies in ten or fifteen minutes. You will see `exp=`, Akamai `hdnts`, or a JWT in the query string. Paste that URL into Jellyfin and it may work once. When the token expires you get a 403, and Jellyfin has no way to go back to the page and get a new one.
+Jellyfin is an open-source media server you run yourself. Movies, shows, live channels, all on a machine you own. For live TV it wants an M3U file, a list of channel names and URLs. Each URL is usually an HLS (HTTP Live Stream) playlist. HLS is Apple's way of chopping video into tiny files and handing the player a text list of what to fetch next. That list is called a `.m3u8`. A master playlist would point at a few quality versions, while a media playlist points at the actual chunks. On a live feed those chunk names keep changing.
 
-Fetch sits between them. Jellyfin only ever talks to Fetch, at a URL that does not rotate. Fetch talks to the origin with the headers and cookies a browser would send, and it rewrites the playlist so every chunk comes through Fetch too. ffmpeg never has to impersonate Chrome. When a token is about to die, Fetch goes and gets a fresh playlist before Jellyfin notices.
+When streaming, these websites get these .m3u8 urls through their network. Every streaming browser gets it, and it is public information.
 
-Sniff is how it copies what the player already sent. You give Fetch the watch page, not the `.m3u8`. It opens the page, watches the network tab, and takes the playlist the player loaded, plus the User-Agent, Referer, cookies, and Authorization header that went with it. Do that from the Capture tab, or from a terminal if you want to watch Chromium do it.
+The fight is authorization. A lot of sites will only serve the video if the request looks like it came from their own player. They check the name of the recipient first, of course. Then they check the Referer, the supposed server that gave them the url. They set a cookie after the page loads. Or, very commonly, they sign the playlist URL with a token, that may die in ten or fifteen minutes. 
+
+Jellyfin needs a public, solid url. Paste these websites' URL into Jellyfin and it may work once. When the token expires you get a 403, and Jellyfin has no way to go back to the page and get a new one. Fetch sits between them. Jellyfin only ever talks to Fetch, at a URL that does not rotate. Fetch talks to the origin with the headers and cookies a browser would send, and it rewrites the playlist so every chunk comes through Fetch too. 
+
+We do not have to impersonate any browser, and when a token is about to die, Fetch goes and gets a fresh playlist before Jellyfin notices.
+
 
 ## Using it
 
-The Guide is the lineup. Pick a channel and it plays. Add a playlist URL if you already have one. If you only have a page that plays in the browser, go to Capture, paste the page, and sniff.
+The Guide is the lineup. Pick a channel and it plays. Add a playlist URL if you already have one. 
 
-Settings builds an M3U for Jellyfin. Point Jellyfin at that file and each channel is a stable Fetch URL. Fetch has to be open for those URLs to work. Open Fetch, then watch. Close the window and the path is gone. That is the point. Nothing sits in the background chewing CPU.
+More commonly, if you only have a website that plays in the browser, go to the Capture tab, paste the page, and sniff.
+Sniff is how Fetch finds the .m3u8. You give Fetch the website, it finds the player, watches the network tab, and takes the playlist plus any authorization that came with it.
+
+
+Fetch is built to be in the background. Close the window and the path is gone. That is the point. Nothing sits eating your CPU.
 
 ## From source
 
