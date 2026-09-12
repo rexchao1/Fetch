@@ -5,6 +5,8 @@ I built Fetch because I got tired of using my browser for streaming and having a
 Download it here (I promise it's safe):
 [Fetch.dmg](https://github.com/rexchao1/Fetch/releases/latest/download/Fetch_0.1.0_aarch64.dmg)
 
+First time, right-click Fetch, click Open, then Open again.
+
 ## Here's some things I learned while making it:
 
 Jellyfin is an open-source media server you run yourself. Movies, shows, live channels, all on a machine you own. For live TV it wants an M3U file, a list of channel names and URLs. Each URL is usually an HLS (HTTP Live Stream) playlist. HLS is Apple's way of chopping video into tiny files and handing the player a text list of what to fetch next. That list is called a `.m3u8`. A master playlist would point at a few quality versions, while a media playlist points at the actual chunks. On a live feed those chunk names keep changing.
