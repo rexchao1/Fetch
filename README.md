@@ -8,7 +8,7 @@ Download it here (I promise it's safe):
 
 First time, right-click Fetch, click Open, then Open again.
 
-! [image](assets/UISample.png)
+![image](assets/UISample.png)
 
 ## Here's some things I learned while making it:
 
