@@ -29,7 +29,7 @@
       "../.output": "output"
     },
     "macOS": {
-      "signingIdentity": "-"
+      "signingIdentity": "Developer ID Application: REX SHENJI CHAO (4L37ZXXDW8)"
     }
   }
 }
