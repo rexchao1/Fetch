@@ -35,5 +35,20 @@ hdiutil create \
   -quiet
 
 rm -f "$dmg_dir/icon.icns"
-codesign --force --sign - "$dmg"
+
+# "-" is ad-hoc (local only). A Developer ID name, or APPLE_SIGNING_IDENTITY,
+# is what GitHub downloads need so Gatekeeper stops calling it malware.
+identity="${APPLE_SIGNING_IDENTITY:--}"
+codesign --force --sign "$identity" "$dmg"
+
+if [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_PASSWORD:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ]; then
+  echo "submitting $name to Apple for notarization"
+  xcrun notarytool submit "$dmg" \
+    --apple-id "$APPLE_ID" \
+    --password "$APPLE_PASSWORD" \
+    --team-id "$APPLE_TEAM_ID" \
+    --wait
+  xcrun stapler staple "$dmg"
+fi
+
 echo "wrote $dmg"
