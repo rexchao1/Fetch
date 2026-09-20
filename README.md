@@ -16,7 +16,7 @@ Jellyfin is an open-source media server you run yourself. Movies, shows, live ch
 
 When streaming, these websites obtain these .m3u8 URLs through their network. Every streaming browser gets it, and it is public information.
 
-The fight is authorization. A lot of sites will only serve the video if the request looks like it came from their own player. They check the name of the recipient first, of course. Then they check the Referer, the supposed server that gave them the url. They set a cookie after the page loads. Or, very commonly, they sign the playlist URL with a token, that may die in ten or fifteen minutes. 
+The fight is authorization. A lot of sites will only serve the video if the request looks like it came from their own player. They check the name of the recipient first, of course. Then they check the Referer, the supposed server that gave them the URL. They set a cookie after the page loads. Or, very commonly, they sign the playlist URL with a token, that may die in ten or fifteen minutes.
 
 Jellyfin needs a public, solid url. Paste these websites' URL into Jellyfin and it may work once. When the token expires you get a 403, and Jellyfin has no way to go back to the page and get a new one. Fetch sits between them. Jellyfin only ever talks to Fetch, at a URL that does not rotate. Fetch talks to the origin with the headers and cookies a browser would send, and it rewrites the playlist so every chunk comes through Fetch too. 
 
