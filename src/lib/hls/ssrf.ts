@@ -1,5 +1,5 @@
 const BLOCKED_HOST =
-  /^(localhost|127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.|::1|0:0:0:0:0:0:0:1|metadata\.google\.internal|metadata\.goog)$/i;
+  /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|0\.\d+\.\d+\.\d+|169\.254\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[0-1])\.\d+\.\d+|::1|0:0:0:0:0:0:0:1|metadata\.google\.internal|metadata\.goog)$/i;
 
 export function assertSafeUpstream(raw: string, requestOrigin?: string): URL {
   let url: URL;
