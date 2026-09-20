@@ -13,7 +13,7 @@
     "desktop:build": "tauri build && sh scripts/pack-dmg.sh",
     "typecheck": "tsc --noEmit",
     "sniff": "node scripts/sniff-m3u8.mjs",
-    "test": "node --test scripts/sniff-core.test.mjs && node --experimental-strip-types --test src/lib/hls/ingest.test.ts",
+    "test": "node --test scripts/sniff-core.test.mjs && node --experimental-strip-types --test src/lib/hls/*.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
