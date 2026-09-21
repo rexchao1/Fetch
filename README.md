@@ -6,7 +6,7 @@ Download Fetch here:
 
 [Fetch.dmg](https://github.com/rexchao1/Fetch/releases/latest/download/Fetch_0.1.0_aarch64.dmg)
 
-The first time, right-click Fetch, click Open, then Open again.
+The first time you open Fetch, right-click it, click Open, then click Open again.
 
 ![image](assets/UISample.png)
 
