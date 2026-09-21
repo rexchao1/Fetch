@@ -10,7 +10,7 @@ The first time you open Fetch, right-click it, click Open, then click Open again
 
 ![image](assets/UISample.png)
 
-## Here are some things I learned while making it:
+## Background
 
 Jellyfin is an open-source media server you run yourself. Movies, shows, live channels, all on a machine you own. For live TV it wants an M3U file, a list of channel names and URLs. Each URL is usually an HLS (HTTP Live Stream) playlist. HLS is Apple's way of chopping video into tiny files and handing the player a text list of what to fetch next. That list is called a `.m3u8`. A master playlist would point at a few quality versions, while a media playlist points at the actual chunks. On a live feed those chunk names keep changing.
 
