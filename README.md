@@ -22,7 +22,7 @@ Jellyfin needs a public, solid URL. Paste these websites' URL into Jellyfin and 
 
 We do not have to impersonate any browser, and when a token is about to die, Fetch goes and gets a fresh playlist before Jellyfin notices.
 
-## Using it
+## Using Fetch
 
 The Guide is the channel lineup. Pick a channel and it plays. Add a playlist URL if you already have one.
 
