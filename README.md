@@ -24,7 +24,7 @@ We do not have to impersonate any browser, and when a token is about to die, Fet
 
 ## Using Fetch
 
-The Guide is the channel lineup. Pick a channel and it plays. Add a playlist URL if you already have one.
+The Guide contains the channel lineup. Pick a channel and it plays. Add a playlist URL if you already have one.
 
 More commonly, if you only have a website that plays in the browser, go to the Capture tab, paste the page URL, and sniff.
 Sniff is the way Fetch finds the .m3u8. You give Fetch the website, it finds the player, watches the network tab, and takes the playlist plus any authorization that came with it.
