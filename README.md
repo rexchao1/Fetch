@@ -14,7 +14,7 @@ The first time you open Fetch, right-click it, then click Open, then click Open 
 
 Jellyfin is an open-source media server you run yourself. Movies, shows, and live channels, all on a machine you own. For live TV it wants an M3U file, a list of channel names and URLs. Each URL is usually an HLS (HTTP Live Stream) playlist. HLS is Apple's way of chopping video into tiny files and handing the player a text list of what to fetch next. That list is called a `.m3u8`. A master playlist would point at a few quality versions, while a media playlist points at the actual chunks. On a live feed those chunk names keep changing.
 
-When streaming, browsers obtain these .m3u8 URLs through their network requests. Every streaming browser gets it, and it is public information.
+When streaming, browsers obtain these `.m3u8` URLs through their network requests. Every streaming browser gets it, and it is public information.
 
 The fight is authorization. A lot of sites will only serve the video if the request looks like it came from their own player. They check the name of the recipient first, of course. Then they check the Referer, the supposed server that gave them the URL. They set a cookie after the page loads. Or, very commonly, they sign the playlist URL with a token, that may die in ten or fifteen minutes.
 
