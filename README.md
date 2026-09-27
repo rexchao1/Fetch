@@ -29,4 +29,4 @@ The Guide lists the channel lineup. Pick a channel to play it, or add a playlist
 If you only have a website that plays in the browser, open the Capture tab, paste the page URL, and sniff.
 Sniff is how Fetch finds the `.m3u8` playlist. It checks the website's network requests and captures the playlist and any authorization that came with it.
 
-Fetch is built to run in the background. Close the window and the path is gone. That is the point. Nothing remains to consume your CPU.
+Fetch is designed to run in the background. Close the window and the path is gone. That is the point. Nothing remains to consume your CPU.
