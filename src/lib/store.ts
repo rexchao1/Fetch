@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { toast } from "sonner";
 import { create } from "zustand";
 import {
   BUILTIN_CHANNELS,
@@ -7,6 +8,14 @@ import {
 } from "@/lib/hls/catalog";
 
 const STORAGE_KEY = "fetch.v1";
+const SELECTED_KEY = "fetch.selected";
+
+/**
+ * Channels removed this session. The server forgets them a moment later;
+ * until then a capture poll could still list them, and they must not come
+ * back.
+ */
+const removedIds = new Set<string>();
 
 type FetchState = {
   custom: Channel[];
@@ -40,6 +49,42 @@ function withFreshTokens(channels: Channel[]): Channel[] {
   });
 }
 
+const BUILTIN_IDS = new Set(BUILTIN_CHANNELS.map((channel) => channel.id));
+
+/**
+ * What is saved for a built-in channel: only the fields the user can change.
+ * A full copy would pin the catalog's URL and name as they were that day, and
+ * a later catalog fix would never reach this user.
+ */
+function toStored(channel: Channel): Channel {
+  if (!BUILTIN_IDS.has(channel.id)) return channel;
+  const overlay: Partial<Channel> = { id: channel.id };
+  if (channel.userAgent !== undefined) overlay.userAgent = channel.userAgent;
+  if (channel.referer !== undefined) overlay.referer = channel.referer;
+  if (channel.token !== undefined) overlay.token = channel.token;
+  if (channel.tokenExpiresAt !== undefined) overlay.tokenExpiresAt = channel.tokenExpiresAt;
+  if (channel.tokenTtlMs !== undefined) overlay.tokenTtlMs = channel.tokenTtlMs;
+  return overlay as Channel;
+}
+
+function loadSelected() {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(SELECTED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveSelected(id: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SELECTED_KEY, id);
+  } catch {
+    /* private window or full storage: the choice just isn't remembered */
+  }
+}
+
 function loadState(): { custom: Channel[]; hidden: string[] } {
   if (typeof window === "undefined") return { custom: [], hidden: [] };
   try {
@@ -47,7 +92,7 @@ function loadState(): { custom: Channel[]; hidden: string[] } {
     if (!raw) return { custom: [], hidden: [] };
     const parsed = JSON.parse(raw) as { custom?: Channel[]; hidden?: string[] };
     return {
-      custom: Array.isArray(parsed.custom) ? parsed.custom : [],
+      custom: Array.isArray(parsed.custom) ? parsed.custom.filter((c) => c?.id).map(toStored) : [],
       hidden: Array.isArray(parsed.hidden) ? parsed.hidden : [],
     };
   } catch {
@@ -57,7 +102,27 @@ function loadState(): { custom: Channel[]; hidden: string[] } {
 
 function persist(custom: Channel[], hidden: string[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ custom, hidden }));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ custom: custom.map(toStored), hidden }));
+  } catch {
+    toast.error("Couldn't save your channels; changes last until Fetch closes");
+  }
+  syncLineup(custom, hidden);
+}
+
+let lineupTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Hand the visible lineup to the server's live M3U (`/api/m3u`). */
+function syncLineup(custom: Channel[], hidden: string[]) {
+  clearTimeout(lineupTimer);
+  lineupTimer = setTimeout(() => {
+    const channels = allChannels(custom, hidden).filter((channel) => channel.group !== "Lab");
+    void fetch("/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "lineup", channels }),
+    }).catch(() => {});
+  }, 300);
 }
 
 export function allChannels(custom: Channel[], hidden: string[] = []) {
@@ -81,7 +146,10 @@ export const useFetchStore = create<FetchState>((set, get) => ({
     const loaded = loadState();
     const custom = withFreshTokens(loaded.custom);
     persist(custom, loaded.hidden);
-    set({ custom, hidden: loaded.hidden, hydrated: true });
+    const saved = loadSelected();
+    const visible = allChannels(custom, loaded.hidden);
+    const selectedId = visible.some((c) => c.id === saved) ? saved! : (visible[0]?.id ?? get().selectedId);
+    set({ custom, hidden: loaded.hidden, hydrated: true, selectedId });
     queueMicrotask(() => {
       for (const channel of allChannels(custom, loaded.hidden)) {
         // Sniffed channels are the server's to refresh; re-registering the
@@ -96,7 +164,10 @@ export const useFetchStore = create<FetchState>((set, get) => ({
       }
     });
   },
-  select: (id) => set({ selectedId: id }),
+  select: (id) => {
+    saveSelected(id);
+    set({ selectedId: id });
+  },
   addCustom: (input) => {
     const id = mintId();
     const channel: Channel = {
@@ -118,6 +189,7 @@ export const useFetchStore = create<FetchState>((set, get) => ({
     const hidden = get().hidden.filter((item) => item !== id);
     const custom = [...get().custom, channel];
     persist(custom, hidden);
+    saveSelected(id);
     set({ custom, hidden, selectedId: id });
     return id;
   },
@@ -131,8 +203,10 @@ export const useFetchStore = create<FetchState>((set, get) => ({
     const remaining = allChannels(custom, hidden);
     const selectedId =
       get().selectedId === id ? (remaining[0]?.id ?? "castr-live") : get().selectedId;
+    saveSelected(selectedId);
     set({ custom, hidden, selectedId });
     if (!isBuiltin) {
+      removedIds.add(id);
       void fetch("/api/session", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -162,7 +236,7 @@ export const useFetchStore = create<FetchState>((set, get) => ({
     const existing = get().custom.find((c) => c.id === id);
     const base = existing ?? builtin;
     if (!base) return Promise.resolve();
-    const next: Channel = { ...base, userAgent, referer };
+    const next: Channel = toStored({ ...base, userAgent, referer });
     const custom = [...get().custom.filter((c) => c.id !== id), next];
     const hidden = get().hidden.filter((item) => item !== id);
     persist(custom, hidden);
@@ -182,7 +256,7 @@ export const useFetchStore = create<FetchState>((set, get) => ({
     const existing = get().custom.find((c) => c.id === id);
     const base = allChannels(get().custom, get().hidden).find((c) => c.id === id);
     if (!base) return;
-    const next: Channel = { ...(existing ?? base), token: token.trim() || undefined };
+    const next: Channel = toStored({ ...(existing ?? base), token: token.trim() || undefined });
     const custom = [...get().custom.filter((c) => c.id !== id), next];
     persist(custom, get().hidden);
     set({ custom });
@@ -196,14 +270,17 @@ export const useFetchStore = create<FetchState>((set, get) => ({
     const { custom, hidden } = get();
     let next = custom;
     let changed = false;
-    let newest: string | undefined;
+    const added: Channel[] = [];
     for (const channel of incoming) {
-      if (!channel?.id || channel.builtin) continue;
+      if (!channel?.id || channel.builtin || removedIds.has(channel.id)) continue;
       const local = next.find((c) => c.id === channel.id);
       if (!local) {
+        // A sniff still running (or one that failed) has no playlist yet;
+        // the Capture screen shows its progress, the Guide waits for a result.
+        if (!channel.url) continue;
         next = [...next, channel];
         changed = true;
-        if (channel.url) newest = channel.id;
+        added.push(channel);
         continue;
       }
       const stale =
@@ -220,7 +297,13 @@ export const useFetchStore = create<FetchState>((set, get) => ({
     }
     if (!changed) return;
     persist(next, hidden);
-    set({ custom: next, ...(newest ? { selectedId: newest } : {}) });
+    set({ custom: next });
+    // Don't switch away from what is playing; offer the new channel instead.
+    for (const channel of added) {
+      toast.success(`${channel.name} is in the Guide`, {
+        action: { label: "Play", onClick: () => get().select(channel.id) },
+      });
+    }
   },
 }));
 
@@ -243,11 +326,11 @@ function syncSession(channel: Channel) {
 function upsertExpiry(custom: Channel[], id: string, tokenExpiresAt: number, tokenTtlMs: number) {
   const base = BUILTIN_CHANNELS.find((c) => c.id === id);
   const existing = custom.find((c) => c.id === id);
-  const next: Channel = {
+  const next: Channel = toStored({
     ...(existing ?? base!),
     tokenExpiresAt,
     tokenTtlMs,
-  };
+  });
   return [...custom.filter((c) => c.id !== id), next];
 }
 

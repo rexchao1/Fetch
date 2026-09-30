@@ -25,6 +25,7 @@ dist/
 # --- Tauri desktop shell ---
 src-tauri/target/
 src-tauri/gen/
+src-tauri/binaries/
 
 # --- Local agent notes, not part of the app ---
 AGENTS.md

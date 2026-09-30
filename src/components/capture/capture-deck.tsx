@@ -15,6 +15,7 @@ export function CaptureDeck() {
     queryKey: ["plane"],
     queryFn: async () => {
       const res = await fetch("/api/session");
+      if (!res.ok) throw new Error(`session ${res.status}`);
       return (await res.json()) as PlaneSnapshot;
     },
     refetchInterval: 1000,
@@ -43,8 +44,15 @@ export function CaptureDeck() {
     <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-4 sm:px-6">
       <SniffForm
         busy={act.isPending}
-        onSubmit={(pageUrl, name) => act.mutate({ action: "sniff", pageUrl, name })}
+        unavailable={data?.sniff === false}
+        onSubmit={(pageUrl, name) => act.mutateAsync({ action: "sniff", pageUrl, name })}
       />
+      {data?.sniff === false ? (
+        <p className="text-sm text-muted">
+          Sniffing needs Fetch's browser driver, which didn't load. Reinstall Fetch, or paste the
+          playlist URL on the Guide instead.
+        </p>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Capture" live={Boolean(data?.inflight.length)}>
@@ -57,6 +65,9 @@ export function CaptureDeck() {
 
       <section className="rounded-xl bg-surface p-4">
         <h2 className="mb-3 text-xs font-medium tracking-wide text-subtle uppercase">Sessions</h2>
+        {data && data.sessions.length === 0 ? (
+          <p className="text-sm text-subtle">No sessions yet. Sniff a page above to start one.</p>
+        ) : null}
         <ul className="grid gap-3 md:grid-cols-2">
           {(data?.sessions ?? []).map((session) => (
             <li key={session.channelId}>
@@ -77,19 +88,27 @@ export function CaptureDeck() {
 
 function SniffForm({
   busy,
+  unavailable,
   onSubmit,
 }: {
   busy: boolean;
-  onSubmit: (pageUrl: string, name: string) => void;
+  unavailable: boolean;
+  onSubmit: (pageUrl: string, name: string) => Promise<unknown>;
 }) {
   const [pageUrl, setPageUrl] = useState("");
   const [name, setName] = useState("");
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    onSubmit(pageUrl.trim(), name.trim());
-    setPageUrl("");
-    setName("");
+    // Clear only once the server took it, so a rejected URL can be fixed
+    // instead of retyped. The error itself is the mutation's toast.
+    onSubmit(pageUrl.trim(), name.trim()).then(
+      () => {
+        setPageUrl("");
+        setName("");
+      },
+      () => {},
+    );
   }
 
   return (
@@ -113,8 +132,8 @@ function SniffForm({
         autoComplete="off"
         className="sm:w-48"
       />
-      <Button type="submit" disabled={busy || !pageUrl.trim()} className="shrink-0">
-        Sniff
+      <Button type="submit" disabled={busy || unavailable || !pageUrl.trim()} className="shrink-0">
+        {busy ? "Sniffing…" : "Sniff"}
       </Button>
     </form>
   );

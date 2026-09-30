@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Download } from "lucide-react";
+import { Check, Copy, Link } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,9 @@ import type { PlaneSnapshot } from "@/lib/session/types";
 import { useFetchStore } from "@/lib/store";
 
 export function SettingsPage({ channels, origin }: { channels: Channel[]; origin: string }) {
-  const [viaProxy, setViaProxy] = useState(true);
-  const [includeLogos, setIncludeLogos] = useState(true);
-  const [copied, setCopied] = useState(false);
+  const [viaProxy, setViaProxy] = useSavedToggle("fetch.m3u.viaProxy", true);
+  const [includeLogos, setIncludeLogos] = useSavedToggle("fetch.m3u.logos", true);
+  const [copied, setCopied] = useState<"m3u" | "link" | null>(null);
   const hidden = useFetchStore((s) => s.hidden);
   const restoreHidden = useFetchStore((s) => s.restoreHidden);
 
@@ -40,34 +40,44 @@ export function SettingsPage({ channels, origin }: { channels: Channel[]; origin
     return buildM3U(lineup, origin, { includeLogos, viaProxy });
   }, [channels, origin, includeLogos, viaProxy]);
 
-  async function copy() {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast.success("Copied");
-    window.setTimeout(() => setCopied(false), 1500);
-  }
+  // The live playlist: Jellyfin re-reads it, so new channels show up there
+  // without copying the M3U again.
+  const liveUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (!viaProxy) params.set("direct", "1");
+    if (!includeLogos) params.set("logos", "0");
+    const query = params.toString();
+    return `${origin}/api/m3u${query ? `?${query}` : ""}`;
+  }, [origin, viaProxy, includeLogos]);
 
-  function download() {
-    const blob = new Blob([text], { type: "audio/x-mpegurl" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "fetch.m3u";
-    a.click();
-    URL.revokeObjectURL(url);
+  async function copy(what: "m3u" | "link") {
+    try {
+      await navigator.clipboard.writeText(what === "m3u" ? text : liveUrl);
+    } catch {
+      toast.error("Couldn't copy");
+      return;
+    }
+    setCopied(what);
+    toast.success("Copied");
+    window.setTimeout(() => setCopied(null), 1500);
   }
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-4 sm:px-6">
       <Section title="Jellyfin playlist">
+        <p className="text-sm text-muted">
+          In Jellyfin, add an M3U tuner with this link. It stays up to date as you add channels,
+          as long as Fetch is running on this Mac.
+        </p>
+        <code className="rounded-md bg-bg px-3 py-2 font-mono text-xs break-all text-fg">{liveUrl}</code>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={copy}>
-            {copied ? <Check /> : <Copy />}
-            Copy M3U
+          <Button size="sm" onClick={() => void copy("link")}>
+            {copied === "link" ? <Check /> : <Link />}
+            Copy link
           </Button>
-          <Button size="sm" variant="secondary" onClick={download}>
-            <Download />
-            Download
+          <Button size="sm" variant="secondary" onClick={() => void copy("m3u")}>
+            {copied === "m3u" ? <Check /> : <Copy />}
+            Copy M3U
           </Button>
         </div>
         <ToggleRow id="via-proxy" label="Route through Fetch" checked={viaProxy} onChange={setViaProxy} />
@@ -97,6 +107,28 @@ export function SettingsPage({ channels, origin }: { channels: Channel[]; origin
       ) : null}
     </div>
   );
+}
+
+/** A switch whose position survives a relaunch. */
+function useSavedToggle(key: string, initial: boolean) {
+  const [value, setValue] = useState(() => {
+    if (typeof window === "undefined") return initial;
+    try {
+      const saved = window.localStorage.getItem(key);
+      return saved === null ? initial : saved === "1";
+    } catch {
+      return initial;
+    }
+  });
+  const update = (next: boolean) => {
+    setValue(next);
+    try {
+      window.localStorage.setItem(key, next ? "1" : "0");
+    } catch {
+      /* not remembered, still applied */
+    }
+  };
+  return [value, update] as const;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {

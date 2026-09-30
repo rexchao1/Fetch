@@ -86,5 +86,7 @@ export type PlaneSnapshot = {
   hits: StreamHit[];
   inflight: string[];
   autoRefresh: boolean;
+  /** Whether this server can sniff pages itself; null until it has checked. */
+  sniff: boolean | null;
   now: number;
 };

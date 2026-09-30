@@ -5,7 +5,7 @@
  * URL or response looks like an `.m3u8` playlist, nudges the page's video
  * elements to play, and returns the best candidate with the exact headers and
  * cookies the page sent for it. It is the one place Playwright is imported,
- * and it imports it lazily with a non-literal specifier so the Vercel server
+ * and it imports it lazily with a non-literal specifier so the server
  * bundle never traces the package; `sniffAvailable` says whether it loaded.
  *
  * The pure helpers (`pickPlaylist`, `expiryFromUrl`, `cookieHeader`,
@@ -57,13 +57,43 @@ async function loadPlaywright() {
   try {
     // Non-literal specifier: bundlers (nitro/rollup for Vercel) cannot trace
     // it, so the server build stays small and this throws at call time where
-    // Playwright is not installed instead of failing the build.
-    const spec = "playwright";
-    playwrightModule = await import(/* @vite-ignore */ spec);
-    return playwrightModule;
+    // Playwright is not installed instead of failing the build. The packaged
+    // app ships only `playwright-core` (copied next to the server by
+    // scripts/bundle-playwright.mjs), which drives an installed Chrome.
+    let lastError;
+    for (const spec of ["playwright", "playwright-core"]) {
+      try {
+        playwrightModule = await import(/* @vite-ignore */ spec);
+        return playwrightModule;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
   } catch (error) {
     playwrightError = error instanceof Error ? error : new Error(String(error));
     throw playwrightError;
+  }
+}
+
+/**
+ * Playwright's own Chromium when it is downloaded (`npx playwright install
+ * chromium`), otherwise the Chrome or Edge already on this Mac.
+ */
+async function launchChromium(chromium, options) {
+  try {
+    return await chromium.launch(options);
+  } catch (first) {
+    for (const channel of ["chrome", "msedge"]) {
+      try {
+        return await chromium.launch({ ...options, channel });
+      } catch {
+        /* try the next browser */
+      }
+    }
+    throw new Error(
+      `no Chromium to sniff with: install Google Chrome, or run npx playwright install chromium (${first instanceof Error ? first.message.split("\n")[0] : first})`,
+    );
   }
 }
 
@@ -213,9 +243,9 @@ export async function sniffPage(opts) {
   });
 
   emit("launch", `Chromium ${opts.headed ? "headed" : "headless"} (capture plane)`);
-  const browser = await chromium.launch({
+  const browser = await launchChromium(chromium, {
     headless: !opts.headed,
-    args: ["--no-sandbox", "--disable-dev-shm-usage", "--autoplay-policy=no-user-gesture-required"],
+    args: ["--disable-dev-shm-usage", "--autoplay-policy=no-user-gesture-required"],
   });
 
   try {

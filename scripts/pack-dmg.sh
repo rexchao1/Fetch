@@ -5,7 +5,8 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 app="$root/src-tauri/target/release/bundle/macos/Fetch.app"
 dmg_dir="$root/src-tauri/target/release/bundle/dmg"
-name="Fetch_0.1.0_aarch64.dmg"
+# No version in the name, so the README's releases/latest link never goes stale.
+name="Fetch.dmg"
 dmg="$dmg_dir/$name"
 
 if [ ! -d "$app" ]; then

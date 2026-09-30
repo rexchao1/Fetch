@@ -14,9 +14,11 @@ import { Route as CaptureRouteImport } from './routes/capture'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiCaptureRouteImport } from './routes/api/capture'
 import { Route as ApiGateRouteImport } from './routes/api/gate'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiHlsRouteImport } from './routes/api/hls'
 import { Route as ApiInspectRouteImport } from './routes/api/inspect'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
+import { Route as ApiM3uRouteImport } from './routes/api/m3u'
 import { Route as ApiProbeRouteImport } from './routes/api/probe'
 import { Route as ApiSessionRouteImport } from './routes/api/session'
 import { Route as ApiTokenRouteImport } from './routes/api/token'
@@ -46,6 +48,11 @@ const ApiGateRoute = ApiGateRouteImport.update({
   path: '/api/gate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHlsRoute = ApiHlsRouteImport.update({
   id: '/api/hls',
   path: '/api/hls',
@@ -59,6 +66,11 @@ const ApiInspectRoute = ApiInspectRouteImport.update({
 const ApiLogoRoute = ApiLogoRouteImport.update({
   id: '/api/logo',
   path: '/api/logo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiM3uRoute = ApiM3uRouteImport.update({
+  id: '/api/m3u',
+  path: '/api/m3u',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiProbeRoute = ApiProbeRouteImport.update({
@@ -83,9 +95,11 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/api/capture': typeof ApiCaptureRoute
   '/api/gate': typeof ApiGateRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/hls': typeof ApiHlsRoute
   '/api/inspect': typeof ApiInspectRoute
   '/api/logo': typeof ApiLogoRoute
+  '/api/m3u': typeof ApiM3uRoute
   '/api/probe': typeof ApiProbeRoute
   '/api/session': typeof ApiSessionRoute
   '/api/token': typeof ApiTokenRoute
@@ -96,9 +110,11 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/api/capture': typeof ApiCaptureRoute
   '/api/gate': typeof ApiGateRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/hls': typeof ApiHlsRoute
   '/api/inspect': typeof ApiInspectRoute
   '/api/logo': typeof ApiLogoRoute
+  '/api/m3u': typeof ApiM3uRoute
   '/api/probe': typeof ApiProbeRoute
   '/api/session': typeof ApiSessionRoute
   '/api/token': typeof ApiTokenRoute
@@ -110,9 +126,11 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/api/capture': typeof ApiCaptureRoute
   '/api/gate': typeof ApiGateRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/hls': typeof ApiHlsRoute
   '/api/inspect': typeof ApiInspectRoute
   '/api/logo': typeof ApiLogoRoute
+  '/api/m3u': typeof ApiM3uRoute
   '/api/probe': typeof ApiProbeRoute
   '/api/session': typeof ApiSessionRoute
   '/api/token': typeof ApiTokenRoute
@@ -125,9 +143,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/api/capture'
     | '/api/gate'
+    | '/api/health'
     | '/api/hls'
     | '/api/inspect'
     | '/api/logo'
+    | '/api/m3u'
     | '/api/probe'
     | '/api/session'
     | '/api/token'
@@ -138,9 +158,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/api/capture'
     | '/api/gate'
+    | '/api/health'
     | '/api/hls'
     | '/api/inspect'
     | '/api/logo'
+    | '/api/m3u'
     | '/api/probe'
     | '/api/session'
     | '/api/token'
@@ -151,9 +173,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/api/capture'
     | '/api/gate'
+    | '/api/health'
     | '/api/hls'
     | '/api/inspect'
     | '/api/logo'
+    | '/api/m3u'
     | '/api/probe'
     | '/api/session'
     | '/api/token'
@@ -165,9 +189,11 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   ApiCaptureRoute: typeof ApiCaptureRoute
   ApiGateRoute: typeof ApiGateRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ApiHlsRoute: typeof ApiHlsRoute
   ApiInspectRoute: typeof ApiInspectRoute
   ApiLogoRoute: typeof ApiLogoRoute
+  ApiM3uRoute: typeof ApiM3uRoute
   ApiProbeRoute: typeof ApiProbeRoute
   ApiSessionRoute: typeof ApiSessionRoute
   ApiTokenRoute: typeof ApiTokenRoute
@@ -210,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/hls': {
       id: '/api/hls'
       path: '/api/hls'
@@ -229,6 +262,13 @@ declare module '@tanstack/react-router' {
       path: '/api/logo'
       fullPath: '/api/logo'
       preLoaderRoute: typeof ApiLogoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/m3u': {
+      id: '/api/m3u'
+      path: '/api/m3u'
+      fullPath: '/api/m3u'
+      preLoaderRoute: typeof ApiM3uRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/probe': {
@@ -261,9 +301,11 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   ApiCaptureRoute: ApiCaptureRoute,
   ApiGateRoute: ApiGateRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ApiHlsRoute: ApiHlsRoute,
   ApiInspectRoute: ApiInspectRoute,
   ApiLogoRoute: ApiLogoRoute,
+  ApiM3uRoute: ApiM3uRoute,
   ApiProbeRoute: ApiProbeRoute,
   ApiSessionRoute: ApiSessionRoute,
   ApiTokenRoute: ApiTokenRoute,

@@ -79,15 +79,20 @@ export function MirrorBar({
 function HealthDot({ mirror }: { mirror: Mirror }) {
   const state = healthOf(mirror);
   return (
-    <span
-      aria-label={state === "up" ? "up" : state === "down" ? "down" : "checking"}
-      className={cn(
-        "size-2 shrink-0 rounded-full",
-        state === "up" && "bg-live",
-        state === "down" && "bg-danger",
-        state === "unknown" && "bg-subtle",
-      )}
-    />
+    <>
+      <span
+        aria-hidden
+        className={cn(
+          "size-2 shrink-0 rounded-full",
+          state === "up" && "bg-live",
+          state === "down" && "bg-danger",
+          state === "unknown" && "bg-subtle",
+        )}
+      />
+      <span className="sr-only">
+        {state === "up" ? "up" : state === "down" ? "down" : "checking"}
+      </span>
+    </>
   );
 }
 

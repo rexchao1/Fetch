@@ -36,6 +36,10 @@ function isLocalHostname(hostname: string) {
   return /^[\d.]+$/.test(hostname) || hostname.includes(":") || LOCAL_NAME.test(hostname);
 }
 
+function isLoopbackIp(ip: string) {
+  return /^127\./.test(ip) || ip === "::1" || /^::ffff:127\./i.test(ip);
+}
+
 /**
  * Who may call the API. Fetch has no login, so it relies on only being
  * reachable from this Mac and refuses anything a browser marks as coming from
@@ -45,6 +49,13 @@ function isLocalHostname(hostname: string) {
  * here, and the app's own window is same-origin.
  */
 export function rejectRequest(request: Request): Response | null {
+  // srvx puts the socket's address on the request. The server only listens
+  // on loopback, so anything else means it was bound wider by mistake.
+  const ip = (request as Request & { ip?: string }).ip;
+  if (ip && !isLoopbackIp(ip)) {
+    return textResponse("403 only this Mac can use Fetch", 403);
+  }
+
   const host = request.headers.get("host") ?? new URL(request.url).host;
   if (!isLocalHostname(hostnameOf(host))) {
     return textResponse("403 unknown host", 403);

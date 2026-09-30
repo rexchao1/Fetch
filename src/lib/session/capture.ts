@@ -50,8 +50,14 @@ const SNIFF_CONCURRENCY = 2;
 let sniffsRunning = 0;
 const sniffQueue: (() => void)[] = [];
 
+/** Whether Playwright loads here; checked once, in the background. */
+let sniffReady: boolean | null = null;
+
 export function ensureScheduler() {
   if (scheduler) return;
+  void sniffAvailable().then((ok) => {
+    sniffReady = ok;
+  });
   scheduler = setInterval(() => {
     if (!isAutoRefresh()) return;
     for (const session of listSessions()) {
@@ -425,7 +431,7 @@ export function expireSession(channelId: string) {
 
 export function planeSnapshot(): PlaneSnapshot {
   ensureScheduler();
-  return snapshot([...inflight.keys()], jobs.slice(0, JOB_LIMIT));
+  return snapshot([...inflight.keys()], jobs.slice(0, JOB_LIMIT), sniffReady);
 }
 
 async function runCapture(job: CaptureJob): Promise<CaptureJob> {
@@ -534,11 +540,15 @@ async function runSniffCapture(job: CaptureJob, recipe: Channel): Promise<Captur
   const pageUrl = recipe.pageUrl!;
   if (!(await sniffAvailable())) {
     job.status = "error";
-    job.error = "Playwright is not installed on this server";
+    job.error = "Sniffing isn't available: Fetch couldn't load its browser driver";
     job.finishedAt = Date.now();
     // The packaged app listens on PORT (set by the Tauri shell), the dev server on 8080.
     const server = `http://127.0.0.1:${process.env.PORT || 8080}`;
-    pushEvent(job, "error", `${job.error} · run: node scripts/sniff-m3u8.mjs ${pageUrl} --server ${server}`);
+    pushEvent(
+      job,
+      "error",
+      `${job.error} · from a Fetch checkout, run: node scripts/sniff-m3u8.mjs ${pageUrl} --server ${server}`,
+    );
     // The stub channel's seeded session has an empty playlistUrl, which the
     // watchdog's `startsWith("http")` filter skips forever — without this it
     // never gets a health status and the Guide shows it as "Live" and

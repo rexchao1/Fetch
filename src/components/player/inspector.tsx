@@ -107,11 +107,7 @@ export function Inspector({ channel, origin }: { channel: Channel; origin: strin
                 <Button
                   size="sm"
                   onClick={async () => {
-                    await fetch("/api/session", {
-                      method: "POST",
-                      headers: { "content-type": "application/json" },
-                      body: JSON.stringify({ action: "capture", channelId: channel.id }),
-                    });
+                    if (!(await postSession({ action: "capture", channelId: channel.id }))) return;
                     refreshToken(channel.id);
                     window.setTimeout(() => void inspect.refetch(), 800);
                   }}
@@ -123,11 +119,7 @@ export function Inspector({ channel, origin }: { channel: Channel; origin: strin
                   size="sm"
                   variant="outline"
                   onClick={async () => {
-                    await fetch("/api/session", {
-                      method: "POST",
-                      headers: { "content-type": "application/json" },
-                      body: JSON.stringify({ action: "expire", channelId: channel.id }),
-                    });
+                    if (!(await postSession({ action: "expire", channelId: channel.id }))) return;
                     expireToken(channel.id);
                     void inspect.refetch();
                   }}
@@ -265,4 +257,21 @@ function formatMs(ms: number) {
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/** POST a session action; say what went wrong instead of failing silently. */
+async function postSession(body: Record<string, unknown>) {
+  try {
+    const res = await fetch("/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return true;
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    toast.error(data.error ?? `Fetch answered ${res.status}`);
+  } catch {
+    toast.error("Couldn't reach Fetch's server");
+  }
+  return false;
 }

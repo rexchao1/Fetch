@@ -11,6 +11,7 @@ import {
 import { registerChannel, setAutoRefresh, setSessionHeaders, setSessionToken, unregisterChannel } from "@/lib/session/store";
 import type { Channel } from "@/lib/hls/catalog";
 import { assertSafeUpstream } from "@/lib/hls/ssrf";
+import { setLineup } from "@/lib/session/lineup";
 
 /** A channel's playlist and failover must be public; relative paths are Fetch's own demo routes. */
 function checkChannel(channel: Channel) {
@@ -35,7 +36,8 @@ export const Route = createFileRoute("/api/session")({
             | "headers"
             | "sniff"
             | "restore"
-            | "switch";
+            | "switch"
+            | "lineup";
           channelId?: string;
           autoRefresh?: boolean;
           channel?: Channel;
@@ -45,6 +47,7 @@ export const Route = createFileRoute("/api/session")({
           pageUrl?: string;
           name?: string;
           mirrorId?: string;
+          channels?: Channel[];
         };
 
         if (body.action === "auto") {
@@ -70,6 +73,11 @@ export const Route = createFileRoute("/api/session")({
           }
           registerChannel(body.channel);
           return jsonResponse(planeSnapshot());
+        }
+
+        if (body.action === "lineup") {
+          setLineup(body.channels);
+          return jsonResponse({ ok: true });
         }
 
         if (body.action === "restore" && body.channel) {

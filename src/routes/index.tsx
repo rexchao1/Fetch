@@ -30,14 +30,18 @@ function Home() {
     : undefined;
   const mirrors = session?.mirrors ?? [];
   const activeMirrorId = session?.activeMirrorId;
+  // A sniffed channel's source comes from the server session. Mounting the
+  // player before it arrives loads the stream once without it and again with
+  // it, so wait for the first answer.
+  const waitingForSession = selected?.source === "sniff" && !plane.isFetched;
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-4 sm:px-6">
-      {origin && selected ? (
+      {origin && selected && !waitingForSession ? (
         <HlsPlayer channel={selected} origin={origin} mirrorId={activeMirrorId} />
       ) : (
         <div className="flex aspect-video items-center justify-center rounded-xl bg-surface text-sm text-subtle">
-          No channel selected
+          {selected ? "Loading…" : "No channel selected"}
         </div>
       )}
       {selected && mirrors.length > 1 ? (

@@ -6,6 +6,7 @@ export function usePlane(interval = 2000) {
     queryKey: ["plane"],
     queryFn: async () => {
       const res = await fetch("/api/session");
+      if (!res.ok) throw new Error(`session ${res.status}`);
       return (await res.json()) as PlaneSnapshot;
     },
     refetchInterval: interval,

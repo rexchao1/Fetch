@@ -156,7 +156,11 @@ export function dueForRefresh(session: StreamSession, now = Date.now()) {
   return age >= ttl * 0.8 && now < session.expiresAt;
 }
 
-export function snapshot(inflight: string[], jobs: PlaneSnapshot["jobs"]): PlaneSnapshot {
+export function snapshot(
+  inflight: string[],
+  jobs: PlaneSnapshot["jobs"],
+  sniff: boolean | null,
+): PlaneSnapshot {
   ensureSeed();
   return {
     sessions: listSessions(),
@@ -164,6 +168,7 @@ export function snapshot(inflight: string[], jobs: PlaneSnapshot["jobs"]): Plane
     hits: recentHits(),
     inflight: [...inflight],
     autoRefresh,
+    sniff,
     now: Date.now(),
   };
 }
