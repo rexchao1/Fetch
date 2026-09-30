@@ -8,20 +8,12 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 
 /// Fetch's own dev server already owns 8080 (vite.config.ts's fixed)
 /// live-preview contract). This just needs a port nothing else on the user's
 /// machine is likely to be holding.
 const SERVER_PORT: u16 = 47821;
-
-/// Passed by the login item so a launch at login starts in the menu bar
-/// without opening the window.
-const HIDDEN_ARG: &str = "--hidden";
-
-const LOGIN_AGENT_LABEL: &str = "com.rexchao.fetch";
 
 struct ServerProcess(Mutex<Option<Child>>);
 
@@ -122,117 +114,10 @@ fn instance_id() -> String {
     format!("fetch-{}-{nanos:x}", std::process::id())
 }
 
-fn login_agent_path() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME")?;
-    Some(
-        PathBuf::from(home)
-            .join("Library/LaunchAgents")
-            .join(format!("{LOGIN_AGENT_LABEL}.plist")),
-    )
-}
-
-/// The `.app` bundle this executable lives in (…/Fetch.app/Contents/MacOS/fetch).
-fn app_bundle() -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
-    let bundle = exe.parent()?.parent()?.parent()?.to_path_buf();
-    (bundle.extension().and_then(|e| e.to_str()) == Some("app")).then_some(bundle)
-}
-
-fn login_item_enabled() -> bool {
-    login_agent_path().is_some_and(|path| path.is_file())
-}
-
-/// Open at Login, as a per-user LaunchAgent that opens this bundle hidden.
-fn set_login_item(enabled: bool) -> Result<(), String> {
-    let path = login_agent_path().ok_or("no home folder")?;
-    if !enabled {
-        return match std::fs::remove_file(&path) {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(e.to_string()),
-        };
-    }
-    let bundle = app_bundle().ok_or("Fetch is not running from an app bundle")?;
-    let escape = |s: &str| s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
-    let plist = format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>{LOGIN_AGENT_LABEL}</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/usr/bin/open</string>
-    <string>-a</string>
-    <string>{}</string>
-    <string>--args</string>
-    <string>{HIDDEN_ARG}</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-</dict>
-</plist>
-"#,
-        escape(&bundle.to_string_lossy())
-    );
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-    }
-    std::fs::write(&path, plist).map_err(|e| e.to_string())
-}
-
-fn show_main_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_focus();
-    }
-}
-
-fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Open Fetch", true, None::<&str>)?;
-    let login = CheckMenuItem::with_id(
-        app,
-        "login",
-        "Open at Login",
-        !cfg!(debug_assertions),
-        login_item_enabled(),
-        None::<&str>,
-    )?;
-    let quit = MenuItem::with_id(app, "quit", "Quit Fetch", true, None::<&str>)?;
-    let separator = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&open, &login, &separator, &quit])?;
-
-    let login_item = login.clone();
-    let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Fetch")
-        .menu(&menu)
-        .show_menu_on_left_click(true)
-        .on_menu_event(move |app, event| match event.id.as_ref() {
-            "open" => show_main_window(app),
-            "login" => {
-                let want = login_item.is_checked().unwrap_or(false);
-                if set_login_item(want).is_err() {
-                    let _ = login_item.set_checked(login_item_enabled());
-                }
-            }
-            "quit" => app.exit(0),
-            _ => {}
-        });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
-    }
-    tray.build(app)?;
-    Ok(())
-}
-
 fn main() {
-    let start_hidden = std::env::args().any(|arg| arg == HIDDEN_ARG);
-
     tauri::Builder::default()
         .manage(ServerProcess(Mutex::new(None)))
-        .setup(move |app| {
+        .setup(|app| {
             // `tauri dev` runs `npm run dev` as its beforeDevCommand and the
             // window loads that directly — nothing to spawn here. Only a
             // release build carries the bundled server as a resource.
@@ -258,35 +143,22 @@ fn main() {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse().unwrap()))
                 .title("Fetch")
                 .inner_size(1280.0, 860.0)
-                .visible(!start_hidden)
                 .build()?;
 
-            build_tray(app.handle())?;
             Ok(())
-        })
-        // Closing the window keeps Fetch in the menu bar, so Jellyfin's
-        // streams keep working. Quit from the menu bar icon or with Cmd+Q.
-        .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
-            }
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| match event {
-            // Clicking the Dock icon brings the hidden window back.
-            #[cfg(target_os = "macos")]
-            RunEvent::Reopen { .. } => show_main_window(app_handle),
-            // Quitting via Cmd+Q / the Dock menu / the tray fires
-            // ExitRequested or Exit at the app level; the bundled server
-            // must go with it.
-            RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+        .run(|app_handle, event| {
+            // Closing the window quits Fetch, and the bundled server goes
+            // with it: nothing keeps running in the background. Quitting via
+            // Cmd+Q / the Dock menu fires ExitRequested at the app level, not
+            // a per-window CloseRequested, so catch both app-level events.
+            if let RunEvent::ExitRequested { .. } | RunEvent::Exit = event {
                 if let Some(mut child) = app_handle.state::<ServerProcess>().0.lock().unwrap().take()
                 {
                     let _ = child.kill();
                 }
             }
-            _ => {}
         });
 }

@@ -1,6 +1,6 @@
 [package]
 name = "fetch"
-version = "0.2.0"
+version = "0.2.1"
 description = "Fetch desktop shell"
 edition = "2021"
 
@@ -8,4 +8,4 @@ edition = "2021"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = [] }
