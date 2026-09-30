@@ -1,32 +1,34 @@
 # Fetch
 
-I built Fetch because I got tired of using my browser for streaming and having ads pop up left and right. Fetch is a macOS desktop app that simplifies this. It contains a beautiful UI with an easy video player. Just take a link off of the internet that has some kind of video content, and Fetch will go grab that video and stream it for you. Say goodbye to those ads!!!
+I built Fetch because I got tired of using my browser for streaming and seeing ads pop up left and right. Fetch is a macOS desktop app that simplifies this. It has a simple interface and video player. Provide a link with video content, and Fetch will retrieve and stream it for you. Say goodbye to those ads.
 
-Download it here (I promise it's safe):
+Download Fetch:
+
 [Fetch.dmg](https://github.com/rexchao1/Fetch/releases/latest/download/Fetch.dmg)
 
-First time, right-click Fetch, click Open, then Open again. It's for Apple silicon Macs.
+It runs on Apple silicon Macs. The first time you open Fetch, macOS may say it can't check it for malware. Open System Settings, go to Privacy & Security, and click Open Anyway.
 
-## Here's some things I learned while making it:
+![image](assets/UISample.png)
 
-Jellyfin is an open-source media server you run yourself. Movies, shows, live channels, all on a machine you own. For live TV it wants an M3U file, a list of channel names and URLs. Each URL is usually an HLS (HTTP Live Stream) playlist. HLS is Apple's way of chopping video into tiny files and handing the player a text list of what to fetch next. That list is called a `.m3u8`. A master playlist would point at a few quality versions, while a media playlist points at the actual chunks. On a live feed those chunk names keep changing.
+## Background
 
-When streaming, these websites get these .m3u8 urls through their network. Every streaming browser gets it, and it is public information.
+Jellyfin is an open-source media server that you run yourself. Movies, shows, and live channels, all on a machine you own. For live TV it wants an M3U file, a list of channel names and URLs. Each URL is usually an HLS (HTTP Live Stream) playlist. HLS is Apple's way of chopping video into tiny files and handing the player a text list of what to fetch next. This list is called a `.m3u8`. A master playlist would point at a few quality versions, while a media playlist points at the actual chunks. On a live feed those chunk names keep changing.
 
-The fight is authorization. A lot of sites will only serve the video if the request looks like it came from their own player. They check the name of the recipient first, of course. Then they check the Referer, the supposed server that gave them the url. They set a cookie after the page loads. Or, very commonly, they sign the playlist URL with a token, that may die in ten or fifteen minutes. 
+When streaming, browsers obtain these `.m3u8` URLs through network requests. Every streaming browser gets it, and it is public information.
 
-Jellyfin needs a public, solid url. Paste these websites' URL into Jellyfin and it may work once. When the token expires you get a 403, and Jellyfin has no way to go back to the page and get a new one. Fetch sits between them. Jellyfin only ever talks to Fetch, at a URL that does not rotate. Fetch talks to the origin with the headers and cookies a browser would send, and it rewrites the playlist so every chunk comes through Fetch too. 
+The fight is authorization. A lot of sites will only serve the video if the request looks like it came from their own player. They check the name of the recipient first, of course. Then they check the Referer, the supposed server that gave them the URL. They set a cookie after the page loads. Or, very commonly, they sign the playlist URL with a token that may die in ten or fifteen minutes.
 
-We do not have to impersonate any browser, and when a token is about to die, Fetch goes and gets a fresh playlist before Jellyfin notices.
+Jellyfin needs a public, stable URL. Paste these websites' URLs into Jellyfin and it may work once. When the token expires you get a 403, and Jellyfin has no way to go back to the page and get a new one. Fetch sits between them. Jellyfin only ever talks to Fetch, at a URL that does not rotate. Fetch talks to the origin with the headers and cookies a browser would send, and it rewrites the playlist so every chunk comes through Fetch too.
 
+We do not have to impersonate any browser, and when a token is about to die, Fetch gets a fresh playlist before Jellyfin notices.
 
-## Using it
+## Using Fetch
 
-The Guide is the lineup. Pick a channel and it plays. Add a playlist URL if you already have one. 
+The Guide lists the channel lineup. Pick a channel to play it, or add a playlist URL if you already have one.
 
-More commonly, if you only have a website that plays in the browser, go to the Capture tab, paste the page, and sniff.
-Sniff is how Fetch finds the .m3u8. You give Fetch the website, it finds the player, watches the network tab, and takes the playlist plus any authorization that came with it. It drives the Google Chrome you already have, in the background, so you need Chrome installed.
+If you only have a website that plays in the browser, open the Capture tab, paste the page URL, and sniff.
+Sniff is how Fetch finds the `.m3u8` playlist. It checks the website's network requests and captures the playlist and any authorization that came with it. It uses the Google Chrome already on your Mac, in the background, so Chrome needs to be installed.
 
-To hook up Jellyfin, open Settings, copy the link, and add it in Jellyfin as an M3U tuner. It's a live list, so channels you add later show up in Jellyfin on its next refresh. Jellyfin has to run on the same Mac for now.
+To connect Jellyfin, open Settings, copy the link, and add it in Jellyfin as an M3U tuner. The list stays live, so channels you add later show up in Jellyfin on its next refresh. For now, Jellyfin has to run on the same Mac.
 
-Fetch lives in the menu bar. Closing the window keeps it running so Jellyfin's streams keep working; quit it from the menu bar icon. "Open at Login" is in that menu too.
+Fetch lives in the menu bar. Closing the window keeps it running so Jellyfin's streams keep working. Quit it from the menu bar icon, where you'll also find Open at Login.

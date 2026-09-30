@@ -1,6 +1,6 @@
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { assertSafeUpstream, safeFetch, sameSite, siteOf } from "./ssrf.ts";
+import { assertSafeUpstream, resolveUpstream, safeFetch, sameSite, siteOf } from "./ssrf.ts";
 
 describe("assertSafeUpstream", () => {
   const blocked = [
@@ -51,6 +51,15 @@ describe("assertSafeUpstream", () => {
   it("allows the server's own origin for the demo routes", () => {
     const url = assertSafeUpstream("http://127.0.0.1:47821/api/gate", "http://127.0.0.1:47821");
     assert.equal(url.pathname, "/api/gate");
+  });
+});
+
+describe("resolveUpstream", () => {
+  it("rejects a private absolute upstream", () => {
+    assert.throws(
+      () => resolveUpstream("http://127.0.0.1/health", "https://fetch.example/api/hls"),
+      /Private or local hosts are not allowed/,
+    );
   });
 });
 
