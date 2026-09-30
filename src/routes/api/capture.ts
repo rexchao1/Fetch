@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { SniffedMirror } from "../../../scripts/sniff-core.mjs";
 import { channelProxyPath } from "@/lib/hls/catalog";
-import { jsonResponse, withCorsHandlers } from "@/lib/hls/http";
+import { jsonResponse, withApiGuard } from "@/lib/hls/http";
 import { recordCaptureJob } from "@/lib/session/capture";
 import { commitCapture, listSniffedChannels, type CaptureInput } from "@/lib/session/sniff";
 import type { CaptureEvent } from "@/lib/session/types";
@@ -36,7 +36,7 @@ function normalizeMirror(m: Partial<SniffedMirror> & { url: string }): SniffedMi
  */
 export const Route = createFileRoute("/api/capture")({
   server: {
-    handlers: withCorsHandlers({
+    handlers: withApiGuard({
       GET: async () => jsonResponse({ channels: listSniffedChannels(), now: Date.now() }),
       POST: async ({ request }: { request: Request }) => {
         let body: CaptureBody;

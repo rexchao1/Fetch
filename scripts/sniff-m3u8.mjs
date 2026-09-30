@@ -17,7 +17,7 @@ import { shortUrl, sniffPage } from "./sniff-core.mjs";
 export function parseSniffArgs(argv, env = {}) {
   const out = {
     pageUrl: "",
-    server: env.FETCH_SERVER || "http://localhost:8080",
+    server: env.FETCH_SERVER || "http://127.0.0.1:8080",
     name: "",
     timeoutMs: 30_000,
     headed: false,
@@ -69,7 +69,7 @@ export function parseSniffArgs(argv, env = {}) {
   return out;
 }
 
-const USAGE = `usage: node scripts/sniff-m3u8.mjs <page-url> [--server http://localhost:8080] [--name "Channel"] [--timeout 30000] [--headed] [--dry-run] [--json]`;
+const USAGE = `usage: node scripts/sniff-m3u8.mjs <page-url> [--server http://127.0.0.1:8080] [--name "Channel"] [--timeout 30000] [--headed] [--dry-run] [--json]`;
 
 async function main() {
   const args = parseSniffArgs(process.argv.slice(2), process.env);

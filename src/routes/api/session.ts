@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { withCorsHandlers, jsonResponse } from "@/lib/hls/http";
+import { withApiGuard, jsonResponse } from "@/lib/hls/http";
 import {
   enqueueCapture,
   enqueueSniff,
@@ -10,10 +10,18 @@ import {
 } from "@/lib/session/capture";
 import { registerChannel, setAutoRefresh, setSessionHeaders, setSessionToken, unregisterChannel } from "@/lib/session/store";
 import type { Channel } from "@/lib/hls/catalog";
+import { assertSafeUpstream } from "@/lib/hls/ssrf";
+
+/** A channel's playlist and failover must be public; relative paths are Fetch's own demo routes. */
+function checkChannel(channel: Channel) {
+  for (const value of [channel.url, channel.failoverUrl]) {
+    if (value && !value.startsWith("/")) assertSafeUpstream(value);
+  }
+}
 
 export const Route = createFileRoute("/api/session")({
   server: {
-    handlers: withCorsHandlers({
+    handlers: withApiGuard({
       GET: async () => jsonResponse(planeSnapshot()),
       POST: async ({ request }: { request: Request }) => {
         const body = (await request.json()) as {
@@ -55,6 +63,11 @@ export const Route = createFileRoute("/api/session")({
         }
 
         if (body.action === "register" && body.channel) {
+          try {
+            checkChannel(body.channel);
+          } catch (error) {
+            return jsonResponse({ error: error instanceof Error ? error.message : "Bad URL" }, 400);
+          }
           registerChannel(body.channel);
           return jsonResponse(planeSnapshot());
         }

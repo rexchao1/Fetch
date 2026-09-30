@@ -168,6 +168,9 @@ export function validPage(raw: string) {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("pageUrl must be http or https");
   }
+  // The sniffer opens this page in Chromium, so it gets the same check as
+  // any upstream: no router admin pages, no localhost.
+  assertSafeUpstream(url.href);
   return url.href;
 }
 

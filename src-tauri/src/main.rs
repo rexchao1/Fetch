@@ -60,7 +60,7 @@ fn main() {
             // window loads that directly — nothing to spawn here. Only a
             // release build carries the bundled server as a resource.
             let url = if cfg!(debug_assertions) {
-                "http://localhost:8080".to_string()
+                "http://127.0.0.1:8080".to_string()
             } else {
                 let resource_dir = app.path().resource_dir()?;
                 let child = spawn_server(resource_dir)

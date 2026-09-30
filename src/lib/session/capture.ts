@@ -1,5 +1,6 @@
 import { scoreMirror } from "../../../scripts/sniff-core.mjs";
 import { TOKEN_TTL_MS, type Channel } from "@/lib/hls/catalog";
+import { assertSafeUpstream, safeFetch } from "@/lib/hls/ssrf";
 import { applyToken } from "@/lib/hls/token";
 import { commitCapture, sniff, sniffAvailable, validPage } from "./sniff";
 import type { Mirror } from "./types";
@@ -17,6 +18,7 @@ import {
   seedFromChannel,
   snapshot,
   touchHealth,
+  unregisterChannel,
 } from "./store";
 import type { CaptureEvent, CaptureJob, PlaneSnapshot, StreamSession } from "./types";
 
@@ -34,11 +36,19 @@ const EVENT_KINDS = new Set<CaptureEvent["kind"]>([
 ]);
 
 const jobs: CaptureJob[] = [];
-const inflight = new Map<string, Promise<CaptureJob>>();
+const inflight = new Map<string, CaptureJob>();
+/** When each channel's last capture failed, so a 403 storm does not retry it every request. */
+const lastFailure = new Map<string, { at: number; job: CaptureJob }>();
 const healthFails = new Map<string, number>();
 let scheduler: ReturnType<typeof setInterval> | null = null;
 let healthCursor = 0;
+let checking = false;
 const JOB_LIMIT = 12;
+const FAILURE_BACKOFF_MS = 30_000;
+/** Chromium instances the server runs at once; more sniffs wait their turn. */
+const SNIFF_CONCURRENCY = 2;
+let sniffsRunning = 0;
+const sniffQueue: (() => void)[] = [];
 
 export function ensureScheduler() {
   if (scheduler) return;
@@ -50,7 +60,11 @@ export function ensureScheduler() {
         enqueueCapture(session.channelId, "ttl 80%");
       }
     }
-    void checkNextLive();
+    if (checking) return;
+    checking = true;
+    void checkNextLive().finally(() => {
+      checking = false;
+    });
   }, 4000);
 }
 
@@ -72,7 +86,7 @@ async function checkNextLive() {
   const started = Date.now();
   try {
     const applied = applyToken(session.playlistUrl, session.token ?? "");
-    const response = await fetch(applied.url, {
+    const { response } = await safeFetch(applied.url, {
       headers: {
         accept: "*/*",
         "user-agent": session.headers.userAgent,
@@ -84,7 +98,6 @@ async function checkNextLive() {
           ? { authorization: applied.authorization ?? session.headers.authorization! }
           : {}),
       },
-      redirect: "follow",
       signal: AbortSignal.timeout(8000),
     });
     void response.body?.cancel();
@@ -179,9 +192,8 @@ async function pingMirror(mirror: Mirror): Promise<{ status: number; ms: number 
     if (mirror.headers.origin) headers.origin = mirror.headers.origin;
     if (mirror.headers.cookie) headers.cookie = mirror.headers.cookie;
     if (mirror.headers.authorization) headers.authorization = mirror.headers.authorization;
-    const response = await fetch(mirror.url, {
+    const { response } = await safeFetch(mirror.url, {
       headers,
-      redirect: "follow",
       signal: AbortSignal.timeout(8000),
     });
     void response.body?.cancel();
@@ -226,12 +238,17 @@ export function switchMirror(channelId: string, mirrorId: string, reason = "manu
 
 type StreamSessionWithMirrors = StreamSession & { mirrors: Mirror[] };
 
+/** Reasons a person or the Guide asked for, which skip the failure backoff. */
+const EXPLICIT_REASONS = new Set(["manual", "sniff", "restore"]);
+
 export function enqueueCapture(channelId: string, reason: string): CaptureJob {
   ensureScheduler();
-  const existing = jobs.find(
-    (job) => job.channelId === channelId && (job.status === "queued" || job.status === "running"),
-  );
+  const existing = inflight.get(channelId);
   if (existing) return existing;
+  const failed = lastFailure.get(channelId);
+  if (failed && !EXPLICIT_REASONS.has(reason) && Date.now() - failed.at < FAILURE_BACKOFF_MS) {
+    return failed.job;
+  }
 
   const recipe = getRecipe(channelId);
   const session = getSession(channelId);
@@ -248,8 +265,16 @@ export function enqueueCapture(channelId: string, reason: string): CaptureJob {
   jobs.unshift(job);
   if (jobs.length > JOB_LIMIT) jobs.length = JOB_LIMIT;
 
-  const run = runCapture(job).finally(() => inflight.delete(channelId));
-  inflight.set(channelId, run);
+  inflight.set(channelId, job);
+  void runCapture(job).then((done) => {
+    if (inflight.get(channelId) === job) inflight.delete(channelId);
+    if (done.status === "error") {
+      if (lastFailure.size > 200) lastFailure.clear();
+      lastFailure.set(channelId, { at: Date.now(), job: done });
+    } else {
+      lastFailure.delete(channelId);
+    }
+  });
   return job;
 }
 
@@ -299,21 +324,38 @@ export function enqueueSniff(
  */
 export function restoreChannel(channel: Channel) {
   if (!channel?.id || channel.builtin || channel.source !== "sniff" || !channel.pageUrl) return;
-  if (getRecipe(channel.id)) return;
+  // A sniffed recipe with a playlist is the server's own, fresher copy. Any
+  // other recipe under this id was made after a restart before the Guide got
+  // here: a Jellyfin hit registering a bare URL, or a `page=` hit's empty
+  // stub. Those know less than the Guide does, so the Guide's copy wins.
+  const current = getRecipe(channel.id);
+  if (current?.source === "sniff" && current.url) return;
   let pageUrl: string;
   try {
     pageUrl = validPage(channel.pageUrl);
   } catch {
     return;
   }
-  registerChannel({
+  let url = "";
+  try {
+    if (channel.url) url = assertSafeUpstream(channel.url).href;
+  } catch {
+    /* re-sniff without a last-known playlist */
+  }
+  const restored: Channel = {
     ...channel,
+    url,
+    failoverUrl: undefined,
     pageUrl,
     kind: "open",
     builtin: false,
     source: "sniff",
     name: String(channel.name || "").slice(0, 60) || new URL(pageUrl).hostname,
-  });
+  };
+  if (current) {
+    unregisterChannel(channel.id);
+  }
+  registerChannel(restored);
   enqueueCapture(channel.id, "restore");
 }
 
@@ -494,7 +536,9 @@ async function runSniffCapture(job: CaptureJob, recipe: Channel): Promise<Captur
     job.status = "error";
     job.error = "Playwright is not installed on this server";
     job.finishedAt = Date.now();
-    pushEvent(job, "error", `${job.error} · run: node scripts/sniff-m3u8.mjs ${pageUrl}`);
+    // The packaged app listens on PORT (set by the Tauri shell), the dev server on 8080.
+    const server = `http://127.0.0.1:${process.env.PORT || 8080}`;
+    pushEvent(job, "error", `${job.error} · run: node scripts/sniff-m3u8.mjs ${pageUrl} --server ${server}`);
     // The stub channel's seeded session has an empty playlistUrl, which the
     // watchdog's `startsWith("http")` filter skips forever — without this it
     // never gets a health status and the Guide shows it as "Live" and
@@ -502,6 +546,7 @@ async function runSniffCapture(job: CaptureJob, recipe: Channel): Promise<Captur
     touchHealth(job.channelId, 0);
     return job;
   }
+  await takeSniffSlot();
   try {
     const result = await sniff({
       pageUrl,
@@ -538,7 +583,23 @@ async function runSniffCapture(job: CaptureJob, recipe: Channel): Promise<Captur
     // health status, the empty-playlist stub session never surfaces as down.
     touchHealth(job.channelId, 0);
     return job;
+  } finally {
+    releaseSniffSlot();
   }
+}
+
+function takeSniffSlot() {
+  if (sniffsRunning < SNIFF_CONCURRENCY) {
+    sniffsRunning += 1;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => sniffQueue.push(resolve));
+}
+
+function releaseSniffSlot() {
+  const next = sniffQueue.shift();
+  if (next) next();
+  else sniffsRunning -= 1;
 }
 
 async function tick(
