@@ -6,7 +6,7 @@ Download Fetch:
 
 [Download Fetch for macOS](https://github.com/rexchao1/Fetch/releases/latest/download/Fetch.dmg)
 
-It runs on Apple silicon Macs. The first time you open Fetch, macOS may say it can't check it for malware. Open System Settings, go to Privacy & Security, and click Open Anyway.
+It runs on Apple silicon Macs. When you first open Fetch, macOS may say it can't check it for malware. Open System Settings, go to Privacy & Security, and click Open Anyway.
 
 ![image](assets/UISample.png)
 
