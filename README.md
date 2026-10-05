@@ -24,7 +24,7 @@ Fetch does not have to impersonate a browser, and when a token is about to die, 
 
 The Guide shows the channel lineup. Select a channel to play it, or add a playlist URL if you already have one.
 
-If you only have a website that plays in the browser, open the Capture tab, paste the page URL, and sniff.
+If you only have a website that plays in a browser, open the Capture tab, paste the page URL, and sniff.
 Sniff is how Fetch finds the `.m3u8` playlist. It checks the website's network requests and captures the playlist and any authorization that came with it. It uses the Google Chrome already on your Mac, in the background, so Chrome needs to be installed.
 
 To connect Jellyfin, open Settings, copy the link, and add it in Jellyfin as an M3U tuner. The list stays live, so channels you add later show up in Jellyfin on its next refresh, while Fetch is open. For now, Jellyfin has to run on the same Mac.
