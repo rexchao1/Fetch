@@ -18,7 +18,7 @@ The fight is authorization. A lot of sites will only serve the video if the requ
 
 Jellyfin needs a public, stable URL. Paste these websites' URLs into Jellyfin and it may work once. After the token expires, you get a 403, and Jellyfin has no way to go back to the page and get a new one. Fetch sits between them. Jellyfin only ever talks to Fetch, at a URL that does not rotate. Fetch talks to the origin with the headers and cookies a browser would send, and it rewrites the playlist so every chunk comes through Fetch too.
 
-Fetch does not have to impersonate a browser, and when a token is about to die, Fetch gets a fresh playlist before Jellyfin notices.
+Fetch does not have to impersonate a browser. When a token is about to die, Fetch gets a fresh playlist before Jellyfin notices.
 
 ## Using Fetch
 
