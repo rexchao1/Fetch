@@ -10,7 +10,7 @@ Fetch runs on Apple silicon Macs. When you first open Fetch, macOS may say it ca
 
 ## Background
 
-Jellyfin is an open-source media server that you run yourself to manage movies, shows, and live channels on a machine you own. For live TV, Jellyfin uses an M3U file, which lists channel names and their URLs. Each URL is usually an HLS (HTTP Live Streaming) playlist. HLS is a streaming format that splits video into small files and gives the player a text list of what to fetch next. This list is called a `.m3u8`. A master playlist points at a few available quality levels, while a media playlist points at the actual chunks. On a live feed, those chunk names keep changing.
+Jellyfin is an open-source media server that you run yourself to manage movies, shows, and live channels on a machine you own. For live TV, Jellyfin uses an M3U file, which lists channel names and their URLs. Each URL is usually an HLS (HTTP Live Streaming) playlist. HLS is a streaming format that splits video into small files and gives the player a text list of what to fetch next. This list is called a `.m3u8`. A master playlist points to a few available quality levels, while a media playlist points to the actual chunks. On a live feed, those chunk names keep changing.
 
 When streaming, browsers obtain these `.m3u8` URLs through network requests. Every browser playing a stream receives them, and they are publicly accessible.
 
