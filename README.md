@@ -30,7 +30,8 @@ After the token expires, you get a 403, and Jellyfin has no way to go back to th
 Fetch sits between Jellyfin and the origin. Jellyfin only ever talks to Fetch at a URL that does not rotate.
 Fetch talks to the origin with the headers and cookies a browser would send. It rewrites the playlist so every chunk comes through Fetch too.
 
-Fetch does not need to impersonate a browser. When a token is about to die, Fetch gets a fresh playlist before Jellyfin notices.
+Fetch does not need to impersonate a browser.
+When a token is about to die, Fetch gets a fresh playlist before Jellyfin notices.
 
 ## Using Fetch
 
