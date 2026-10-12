@@ -6,7 +6,9 @@ Provide a video URL and Fetch will retrieve and stream it for you. Say goodbye t
 
 [Download Fetch for macOS](https://github.com/rexchao1/Fetch/releases/latest/download/Fetch.dmg)
 
-Fetch runs on Apple silicon Macs. When you first open Fetch, macOS may say it can't check it for malware. Open System Settings, go to Privacy & Security, and click Open Anyway.
+Fetch runs on Apple silicon Macs.
+When you first open Fetch, macOS may say it can't check it for malware.
+Open System Settings, go to Privacy & Security, and click Open Anyway.
 
 ![image](assets/UISample.png)
 
