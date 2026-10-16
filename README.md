@@ -21,7 +21,7 @@ A master playlist points to a few available quality levels, while a media playli
 
 When streaming, a browser requests the stream's `.m3u8` URL. The URL may be publicly accessible.
 
-The fight is authorization. Many sites will only serve the video if the request looks like it came from their own player.
+The hard part is authorization. Many sites will only serve the video if the request looks like it came from their own player.
 They may check the request's Host header first. Then they check the Referer header, which identifies the page that supposedly gave them the URL.
 The site may set a cookie after the page loads. Sites also commonly sign the playlist URL with a token that may expire in ten or fifteen minutes.
 
