@@ -25,7 +25,7 @@ The hard part is authorization. Many sites will only serve the video if the requ
 They may check the request's Host header first. Then they check the Referer header, which identifies the page that supposedly gave them the URL.
 The site may set a cookie after the page loads. Sites also commonly sign the playlist URL with a token that may expire in ten or fifteen minutes.
 
-Jellyfin needs a public, stable URL. Paste these websites' URLs into Jellyfin and it may work once.
+Jellyfin needs a public, stable URL. Paste one of these signed playlist URLs into Jellyfin and it may work once.
 After the token expires, you get a 403, and Jellyfin has no way to go back to the page and get a new one.
 Fetch sits between Jellyfin and the origin. Jellyfin only ever talks to Fetch at a URL that does not rotate.
 Fetch talks to the origin with the headers and cookies a browser would send. It rewrites the playlist so every chunk comes through Fetch too.
