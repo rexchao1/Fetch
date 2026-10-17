@@ -19,7 +19,7 @@ For live TV, Jellyfin uses an M3U playlist that lists channel names and their UR
 HLS is a streaming format that splits video into small files and gives the player a text list of what to fetch next. The list is stored in a `.m3u8` file.
 A master playlist points to a few available quality levels, while a media playlist points to the video chunks. On a live feed, the chunk names keep changing.
 
-When streaming, a browser requests the stream's `.m3u8` URL. The URL may be publicly accessible.
+When streaming, a browser requests the stream's `.m3u8` URL. The URL can be publicly accessible.
 
 The hard part is authorization. Many sites will only serve the video if the request looks like it came from their own player.
 They may check the request's Host header first. Then they check the Referer header, which identifies the page that supposedly gave them the URL.
