@@ -27,7 +27,7 @@ The site may set a cookie after the page loads. Sites also commonly sign the pla
 
 Jellyfin needs a public, stable URL. Paste one of these signed playlist URLs into Jellyfin and it may work once.
 After the token expires, Jellyfin gets a 403, and it has no way to go back to the page and get a new one.
-Fetch sits between Jellyfin and the origin. Jellyfin only ever talks to Fetch at a URL that does not rotate.
+Fetch sits between Jellyfin and the origin. Jellyfin only ever talks to Fetch at a stable URL that does not rotate.
 Fetch talks to the origin with the headers and cookies a browser would send. It rewrites the playlist so every chunk comes through Fetch too.
 
 Fetch does not need to impersonate a browser.
