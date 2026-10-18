@@ -17,7 +17,7 @@ Open System Settings, go to Privacy & Security, and click Open Anyway.
 Jellyfin is an open-source media server you run yourself to manage movies, shows, and live channels on your own machine.
 For live TV, Jellyfin uses an M3U playlist that lists channel names and their URLs. Each URL often points to an HLS (HTTP Live Streaming) playlist.
 HLS is a streaming format that splits video into small files and gives the player a text list of what to fetch next. The list is stored in a `.m3u8` file.
-A master playlist points to a few available quality levels, while a media playlist points to the video chunks. On a live feed, the chunk names keep changing.
+A master playlist points to a few available quality levels, while a media playlist points to the video chunks. On a live feed, chunk names change over time.
 
 When streaming, a browser requests the stream's `.m3u8` URL. The URL can be publicly accessible.
 
