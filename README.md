@@ -42,4 +42,4 @@ Sniffing is how Fetch finds the `.m3u8` playlist. It checks the website's networ
 
 To connect Jellyfin, open Settings, copy the link, and add it in Jellyfin as an M3U tuner. The M3U list stays live, so channels you add later appear in Jellyfin on its next refresh while Fetch is open. For now, Jellyfin must run on the same Mac.
 
-Fetch is designed to run in the background. Close the window and the path is gone. That is intentional. Nothing remains to consume your CPU.
+Fetch is designed to run in the background. Close the window and the path is gone; that is intentional. Nothing remains to consume your CPU.
