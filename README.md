@@ -26,8 +26,7 @@ When you stream a video in a browser, it requests the stream's `.m3u8` URL. The 
 
 The hard part is authorization. Many sites will only serve the video if the request looks like it came from their own player.
 They may check the request's Host header first.
-They may also check the Referer header, which identifies the page that supposedly gave them the URL.
-The site may set a cookie after the page loads. Sites also commonly sign the playlist URL with a token that may expire in ten or fifteen minutes.
+They may also check the Referer header, which identifies the page that supposedly gave them the URL. The site may set a cookie after the page loads. Sites also commonly sign the playlist URL with a token that may expire in ten or fifteen minutes.
 
 Jellyfin needs a public, stable URL. Paste one of these signed playlist URLs into Jellyfin and it may work once.
 After the token expires, Jellyfin gets a 403 and has no way to return to the page to get a new one.
