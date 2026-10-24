@@ -8,8 +8,7 @@ Say goodbye to those ads.
 [Download Fetch for macOS](https://github.com/rexchao1/Fetch/releases/latest/download/Fetch.dmg)
 
 Fetch runs on Macs with Apple silicon.
-When you first open Fetch, macOS may warn
-that it cannot check the app for malware.
+When you first open Fetch, macOS may warn that it cannot check the app for malware.
 Open System Settings, go to Privacy & Security, and click Open Anyway.
 
 ![image](assets/UISample.png)
