@@ -22,8 +22,7 @@ HLS is a streaming format that splits video into small files and gives the playe
 This list is stored in a `.m3u8` file.
 A master playlist points to available quality levels, while a media playlist points to the video chunks. On a live feed, chunk names change over time.
 
-When you stream a video in a browser, it requests the stream's `.m3u8` URL.
-The URL can be publicly accessible.
+When you stream a video in a browser, it requests the stream's `.m3u8` URL. The URL can be publicly accessible.
 
 The hard part is authorization. Many sites will only serve the video if the request looks like it came from their own player.
 They may check the request's Host header first.
