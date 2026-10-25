@@ -33,7 +33,7 @@ describe("rejectRequest", () => {
     assert.equal(res?.status, 403);
   });
 
-  it("refuses a public host name (DNS rebinding)", () => {
+  it("refuses a public hostname (DNS rebinding)", () => {
     const res = rejectRequest(req({ host: "rebind.evil.example:47821" }));
     assert.equal(res?.status, 403);
   });
