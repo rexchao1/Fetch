@@ -7,7 +7,7 @@ function req(headers: Record<string, string>, method = "GET") {
 }
 
 describe("rejectRequest", () => {
-  it("lets the app's own window through", () => {
+  it("allows a same-origin request from the app's own window", () => {
     const ok = req({
       host: "127.0.0.1:47821",
       origin: "http://127.0.0.1:47821",
