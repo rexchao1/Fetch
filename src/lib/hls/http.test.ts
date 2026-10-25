@@ -23,7 +23,7 @@ describe("rejectRequest", () => {
     assert.equal(rejectRequest(req({ host: "[::1]:47821" })), null);
   });
 
-  it("refuses a request sent from another website", () => {
+  it("refuses a request marked as cross-site", () => {
     const res = rejectRequest(req({ host: "127.0.0.1:47821", "sec-fetch-site": "cross-site" }));
     assert.equal(res?.status, 403);
   });
