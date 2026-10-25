@@ -17,7 +17,7 @@ describe("rejectRequest", () => {
     assert.equal(rejectRequest(ok), null);
   });
 
-  it("lets Jellyfin, VLC and the sniff script through", () => {
+  it("allows the tested Jellyfin, VLC, and sniff-script requests", () => {
     assert.equal(rejectRequest(req({ host: "127.0.0.1:47821", "user-agent": "Lavf/60" })), null);
     assert.equal(rejectRequest(req({ host: "host.docker.internal:47821" })), null);
     assert.equal(rejectRequest(req({ host: "[::1]:47821" })), null);
