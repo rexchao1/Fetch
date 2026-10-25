@@ -28,7 +28,7 @@ describe("rejectRequest", () => {
     assert.equal(res?.status, 403);
   });
 
-  it("refuses a foreign Origin even without fetch metadata", () => {
+  it("refuses a foreign Origin when fetch metadata is absent", () => {
     const res = rejectRequest(req({ host: "127.0.0.1:47821", origin: "https://evil.example" }));
     assert.equal(res?.status, 403);
   });
