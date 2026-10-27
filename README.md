@@ -26,7 +26,8 @@ On a live feed, chunk names change over time.
 When you stream a video in a browser, the page requests the stream's `.m3u8` URL.
 The URL can be publicly accessible.
 
-The hard part is authorization. Many sites will only serve the video if the request looks like it came from their own player.
+The hard part is authorization.
+Many sites will only serve the video if the request looks like it came from their own player.
 They may check the request's Host header first.
 They may also check the Referer header, which identifies the page that supposedly gave them the URL.
 The site may set a cookie after the page loads.
