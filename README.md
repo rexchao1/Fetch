@@ -23,7 +23,7 @@ This list is stored in a `.m3u8` file.
 A master playlist points to available quality levels, while a media playlist points to the video chunks.
 On a live feed, chunk names change over time.
 
-When you stream a video in a browser, the page requests the stream's `.m3u8` URL.
+When you stream a video in a browser, the page requests the stream's playlist URL.
 The URL can be publicly accessible.
 
 The hard part is authorization.
