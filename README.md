@@ -46,7 +46,7 @@ When a token is about to expire, Fetch gets a fresh playlist before Jellyfin not
 
 ## Using Fetch
 
-The Guide shows the channel lineup.
+The **Guide** shows the channel lineup.
 Select a channel to play it, or add a playlist URL if you already have one.
 
 If you only have a website that plays in a browser, open the Capture tab, paste its URL, and start sniffing.
