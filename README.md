@@ -58,4 +58,6 @@ To connect Jellyfin, open Settings, copy the link, and add it in Jellyfin as an 
 The M3U list stays live, so channels you add later appear in Jellyfin on its next refresh while Fetch is open.
 For now, Jellyfin must run on this Mac.
 
-Fetch is designed to run in the background. Close the window and the path is gone; that is intentional. Nothing remains to consume your CPU.
+Fetch is designed to run in the background.
+Close the window and the path is gone; that is intentional.
+Nothing remains to consume your CPU.
