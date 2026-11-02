@@ -54,7 +54,7 @@ Sniffing is how Fetch finds the HLS `.m3u8` playlist.
 It checks the website's network requests and captures the playlist and its authorization data when available.
 Sniffing runs Google Chrome in the background, so Chrome must be installed.
 
-To connect Jellyfin, open Settings, copy the link, and add it in Jellyfin as an M3U tuner.
+To connect Jellyfin, open **Settings**, copy the link, and add it in Jellyfin as an M3U tuner.
 The M3U list stays live, so channels you add later appear in Jellyfin on its next refresh while Fetch is open.
 For now, Jellyfin must run on this Mac.
 
