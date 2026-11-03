@@ -21,7 +21,7 @@ Each URL often points to an `HLS` (HTTP Live Streaming) playlist.
 HLS is a streaming format that splits video into short media segments and gives the player a text playlist of the next segments to fetch.
 This playlist is stored in a `.m3u8` file.
 A master playlist points to available video quality levels, while a media playlist points to the video segments.
-On a live feed, segment names change over time.
+On a live feed, segment names can change over time.
 
 When you stream a video in a browser, the page requests the stream's playlist URL.
 The URL can be publicly accessible.
