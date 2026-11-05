@@ -34,7 +34,7 @@ The site may set a cookie after the page loads.
 Sites also commonly sign the playlist URL with a token that may expire in ten or fifteen minutes.
 
 Jellyfin needs a public, stable URL.
-Paste one of these signed playlist URLs into Jellyfin and it may work once.
+Paste one of these signed playlist URLs into Jellyfin, and it may work once.
 After the token expires, Jellyfin gets a `403` and has no way to return to the page to get a new one.
 Fetch sits between Jellyfin and the origin.
 Jellyfin only ever talks to Fetch at a stable URL that does not rotate.
