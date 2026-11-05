@@ -38,7 +38,7 @@ Paste one of these signed playlist URLs into Jellyfin, and it may work once.
 After the token expires, Jellyfin gets a `403` and has no way to return to the page to get a new one.
 Fetch sits between Jellyfin and the origin.
 Jellyfin only ever talks to Fetch at a stable URL that does not rotate.
-Fetch talks to the origin with the headers and cookies that a browser would send.
+Fetch talks to the origin, with the headers and cookies that a browser would send.
 It rewrites the playlist so every segment comes through Fetch too.
 
 Fetch does not need to impersonate a browser.
