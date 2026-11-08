@@ -1,6 +1,6 @@
 # Fetch
 
-I built Fetch because I got tired of streaming in my browser and seeing ads pop up everywhere.
+I built Fetch because I got tired of watching streams in my browser and seeing ads pop up everywhere.
 Fetch is a macOS desktop app with a simple interface and video player.
 Paste a video URL, and Fetch retrieves and streams it for you.
 Say goodbye to those ads.
