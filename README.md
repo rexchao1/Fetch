@@ -24,7 +24,7 @@ A master playlist lists available video quality levels; a media playlist points 
 For a live feed, segment names can change over time.
 
 When you stream a video in a browser, the page requests the URL of the stream's playlist.
-The playlist URL may be accessible without authorization.
+The playlist URL may be accessible even without authorization.
 
 The hard part is authorization.
 Many sites will only serve the video if the request looks like it came from their own player.
