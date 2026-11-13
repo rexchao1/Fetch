@@ -23,7 +23,7 @@ These playlists are stored in `.m3u8` files.
 A master playlist lists available video quality levels; a media playlist points to the video segments.
 For a live feed, segment names can change over time.
 
-When you stream a video in a browser, the page requests the URL of the stream's playlist.
+When you stream a video in a browser, the page requests the stream's playlist URL.
 The playlist URL may be accessible even without authorization.
 
 The hard part is authorization.
