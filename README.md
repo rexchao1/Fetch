@@ -15,7 +15,7 @@ Open **System Settings**, go to **Privacy & Security**, and click **Open Anyway*
 
 ## Background
 
-Jellyfin is an open-source media server that you host to organize movies, shows, and live channels on your own machine.
+Jellyfin is an open-source media server that you host on your own machine to organize movies, shows, and live channels.
 For live TV, Jellyfin uses an M3U playlist containing channel names and stream URLs.
 A channel URL often points to an `HLS` (HTTP Live Streaming) playlist file.
 HLS is a streaming format that splits video into short segments and gives the player a text-based playlist of upcoming segments to fetch.
